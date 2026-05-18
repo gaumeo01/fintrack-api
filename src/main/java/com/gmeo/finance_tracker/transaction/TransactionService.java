@@ -1,5 +1,6 @@
 package com.gmeo.finance_tracker.transaction;
 
+import com.gmeo.finance_tracker.exception.ResourceNotFoundException;
 import com.gmeo.finance_tracker.transaction.dto.TransactionRequest;
 import com.gmeo.finance_tracker.transaction.dto.TransactionResponse;
 import java.util.List;
@@ -35,14 +36,14 @@ public class TransactionService {
 
     public TransactionResponse getTransactionById(Long id) {
         Transaction transaction = transactionRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Transaction not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Transaction not found with id: " + id));
 
         return mapToResponse(transaction);
     }
 
     public TransactionResponse updateTransaction(Long id, TransactionRequest request) {
         Transaction transaction = transactionRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Transaction not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Transaction not found with id: " + id));
 
         transaction.setType(request.getType());
         transaction.setAmount(request.getAmount());
@@ -56,7 +57,7 @@ public class TransactionService {
 
     public void deleteTransaction(Long id) {
         Transaction transaction = transactionRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Transaction not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Transaction not found with id: " + id));
 
         transactionRepository.delete(transaction);
     }
