@@ -37,7 +37,7 @@ public class Transaction {
     @Column(nullable = false, length = 100)
     private String category;
 
-    @Column(length = 500)
+    @Column(length = 225)
     private String description;
 
     @Column(nullable = false)
