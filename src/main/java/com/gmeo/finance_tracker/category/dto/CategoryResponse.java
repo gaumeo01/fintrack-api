@@ -1,5 +1,7 @@
 package com.gmeo.finance_tracker.category.dto;
 
+import com.gmeo.finance_tracker.category.enums.CategoryType;
+import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -9,5 +11,7 @@ public class CategoryResponse {
 
     private Long id;
     private String name;
-    private String type;
+    private CategoryType type;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }
