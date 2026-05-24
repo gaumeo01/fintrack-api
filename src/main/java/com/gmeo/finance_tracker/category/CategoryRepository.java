@@ -1,5 +1,6 @@
 package com.gmeo.finance_tracker.category;
 
-// TODO: Extend JpaRepository<Category, Long> after Category becomes a JPA entity.
-public interface CategoryRepository {
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface CategoryRepository extends JpaRepository<Category, Long> {
 }
