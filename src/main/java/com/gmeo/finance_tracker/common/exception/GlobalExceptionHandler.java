@@ -1,5 +1,6 @@
-package com.gmeo.finance_tracker.exception;
+package com.gmeo.finance_tracker.common.exception;
 
+import com.gmeo.finance_tracker.common.response.ApiErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
 import java.util.HashMap;

@@ -1,4 +1,4 @@
-package com.gmeo.finance_tracker.exception;
+package com.gmeo.finance_tracker.common.response;
 
 import java.time.LocalDateTime;
 import java.util.Map;

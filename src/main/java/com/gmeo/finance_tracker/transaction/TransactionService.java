@@ -1,6 +1,6 @@
 package com.gmeo.finance_tracker.transaction;
 
-import com.gmeo.finance_tracker.exception.ResourceNotFoundException;
+import com.gmeo.finance_tracker.common.exception.ResourceNotFoundException;
 import com.gmeo.finance_tracker.transaction.dto.TransactionRequest;
 import com.gmeo.finance_tracker.transaction.dto.TransactionResponse;
 import java.util.List;
