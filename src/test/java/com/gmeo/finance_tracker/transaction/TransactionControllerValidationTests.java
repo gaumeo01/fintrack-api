@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.gmeo.finance_tracker.category.enums.CategoryType;
 import com.gmeo.finance_tracker.common.exception.GlobalExceptionHandler;
 import com.gmeo.finance_tracker.transaction.dto.TransactionRequest;
 import com.gmeo.finance_tracker.transaction.dto.TransactionResponse;
@@ -37,7 +38,9 @@ class TransactionControllerValidationTests {
         response.setId(1L);
         response.setType(TransactionType.EXPENSE);
         response.setAmount(new BigDecimal("25.50"));
-        response.setCategory("Food");
+        response.setCategoryId(1L);
+        response.setCategoryName("Food");
+        response.setCategoryType(CategoryType.EXPENSE);
         response.setDescription("Lunch");
         response.setTransactionDate(LocalDate.of(2026, 5, 20));
 
@@ -49,7 +52,7 @@ class TransactionControllerValidationTests {
                                 {
                                   "type": "EXPENSE",
                                   "amount": 25.50,
-                                  "category": "Food",
+                                  "categoryId": 1,
                                   "description": "Lunch",
                                   "transactionDate": "2026-05-20"
                                 }
@@ -58,7 +61,9 @@ class TransactionControllerValidationTests {
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.type").value("EXPENSE"))
                 .andExpect(jsonPath("$.amount").value(25.50))
-                .andExpect(jsonPath("$.category").value("Food"));
+                .andExpect(jsonPath("$.categoryId").value(1))
+                .andExpect(jsonPath("$.categoryName").value("Food"))
+                .andExpect(jsonPath("$.categoryType").value("EXPENSE"));
     }
 
     @Test
@@ -69,7 +74,7 @@ class TransactionControllerValidationTests {
                                 {
                                   "type": "EXPENSE",
                                   "amount": 0,
-                                  "category": "Food",
+                                  "categoryId": 1,
                                   "description": "Lunch",
                                   "transactionDate": "2026-05-20"
                                 }
@@ -81,20 +86,19 @@ class TransactionControllerValidationTests {
     }
 
     @Test
-    void createTransactionReturnsBadRequestForBlankCategory() throws Exception {
+    void createTransactionReturnsBadRequestForMissingCategoryId() throws Exception {
         mockMvc.perform(post("/api/transactions")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "type": "EXPENSE",
                                   "amount": 25.50,
-                                  "category": "",
                                   "description": "Lunch",
                                   "transactionDate": "2026-05-20"
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.validationErrors.category").exists());
+                .andExpect(jsonPath("$.validationErrors.categoryId").exists());
 
         verifyNoInteractions(transactionService);
     }
@@ -106,7 +110,7 @@ class TransactionControllerValidationTests {
                         .content("""
                                 {
                                   "amount": 25.50,
-                                  "category": "Food",
+                                  "categoryId": 1,
                                   "description": "Lunch",
                                   "transactionDate": "2026-05-20"
                                 }
