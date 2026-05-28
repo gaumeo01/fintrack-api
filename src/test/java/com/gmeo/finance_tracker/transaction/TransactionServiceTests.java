@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.gmeo.finance_tracker.category.Category;
 import com.gmeo.finance_tracker.category.CategoryRepository;
 import com.gmeo.finance_tracker.category.enums.CategoryType;
+import com.gmeo.finance_tracker.common.dto.PageResponse;
 import com.gmeo.finance_tracker.common.exception.ResourceNotFoundException;
 import com.gmeo.finance_tracker.transaction.dto.TransactionRequest;
 import com.gmeo.finance_tracker.transaction.dto.TransactionResponse;
@@ -17,11 +18,16 @@ import com.gmeo.finance_tracker.transaction.enums.TransactionType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 class TransactionServiceTests {
 
@@ -75,6 +81,45 @@ class TransactionServiceTests {
                 .hasMessage("Category not found with id: 1");
 
         verify(transactionRepository, never()).save(any(Transaction.class));
+    }
+
+    @Test
+    void getTransactionsReturnsPaginatedResponse() {
+        Category category = new Category();
+        category.setId(1L);
+        category.setName("Food");
+        category.setType(CategoryType.EXPENSE);
+
+        Transaction transaction = new Transaction();
+        transaction.setId(10L);
+        transaction.setType(TransactionType.EXPENSE);
+        transaction.setAmount(new BigDecimal("25.50"));
+        transaction.setCategory(category);
+        transaction.setDescription("Lunch");
+        transaction.setTransactionDate(LocalDate.of(2026, 5, 20));
+        transaction.setCreatedAt(LocalDateTime.of(2026, 5, 20, 10, 0));
+        transaction.setUpdatedAt(LocalDateTime.of(2026, 5, 20, 10, 0));
+
+        Pageable pageable = PageRequest.of(0, 10);
+        when(transactionRepository.findAll(Mockito.<Specification<Transaction>>any(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(transaction), pageable, 1));
+
+        PageResponse<TransactionResponse> response = transactionService.getTransactions(
+                TransactionType.EXPENSE,
+                1L,
+                LocalDate.of(2026, 5, 1),
+                LocalDate.of(2026, 5, 31),
+                new BigDecimal("10"),
+                new BigDecimal("100"),
+                pageable);
+
+        assertThat(response.getContent()).hasSize(1);
+        assertThat(response.getContent().get(0).getCategoryName()).isEqualTo("Food");
+        assertThat(response.getPage()).isZero();
+        assertThat(response.getSize()).isEqualTo(10);
+        assertThat(response.getTotalElements()).isEqualTo(1);
+        assertThat(response.getTotalPages()).isEqualTo(1);
+        assertThat(response.isLast()).isTrue();
     }
 
     private TransactionRequest createRequest() {

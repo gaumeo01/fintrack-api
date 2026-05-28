@@ -2,10 +2,17 @@ package com.gmeo.finance_tracker.transaction;
 
 import com.gmeo.finance_tracker.category.Category;
 import com.gmeo.finance_tracker.category.CategoryRepository;
+import com.gmeo.finance_tracker.common.dto.PageResponse;
 import com.gmeo.finance_tracker.common.exception.ResourceNotFoundException;
 import com.gmeo.finance_tracker.transaction.dto.TransactionRequest;
 import com.gmeo.finance_tracker.transaction.dto.TransactionResponse;
+import com.gmeo.finance_tracker.transaction.enums.TransactionType;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -40,6 +47,28 @@ public class TransactionService {
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
+    }
+
+    public PageResponse<TransactionResponse> getTransactions(
+            TransactionType type,
+            Long categoryId,
+            LocalDate fromDate,
+            LocalDate toDate,
+            BigDecimal minAmount,
+            BigDecimal maxAmount,
+            Pageable pageable) {
+        Specification<Transaction> specification = TransactionSpecification.withFilters(
+                type,
+                categoryId,
+                fromDate,
+                toDate,
+                minAmount,
+                maxAmount);
+
+        Page<TransactionResponse> transactionPage = transactionRepository.findAll(specification, pageable)
+                .map(this::mapToResponse);
+
+        return PageResponse.fromPage(transactionPage);
     }
 
     public TransactionResponse getTransactionById(Long id) {
