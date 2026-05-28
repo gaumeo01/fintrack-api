@@ -1,9 +1,16 @@
 package com.gmeo.finance_tracker.transaction;
 
+import com.gmeo.finance_tracker.common.dto.PageResponse;
 import com.gmeo.finance_tracker.transaction.dto.TransactionRequest;
 import com.gmeo.finance_tracker.transaction.dto.TransactionResponse;
+import com.gmeo.finance_tracker.transaction.enums.TransactionType;
 import jakarta.validation.Valid;
-import java.util.List;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -13,6 +20,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -33,8 +41,22 @@ public class TransactionController {
     }
 
     @GetMapping
-    public List<TransactionResponse> getAllTransactions() {
-        return transactionService.getAllTransactions();
+    public PageResponse<TransactionResponse> getTransactions(
+            @RequestParam(required = false) TransactionType type,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(required = false) BigDecimal minAmount,
+            @RequestParam(required = false) BigDecimal maxAmount,
+            @PageableDefault(size = 20, sort = "transactionDate", direction = Sort.Direction.DESC) Pageable pageable) {
+        return transactionService.getTransactions(
+                type,
+                categoryId,
+                fromDate,
+                toDate,
+                minAmount,
+                maxAmount,
+                pageable);
     }
 
     @GetMapping("/{id}")

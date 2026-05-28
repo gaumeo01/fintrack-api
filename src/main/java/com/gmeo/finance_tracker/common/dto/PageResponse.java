@@ -2,12 +2,13 @@ package com.gmeo.finance_tracker.common.dto;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-// TODO: Use this later for paginated API responses.
 @Getter
 @Setter
 @NoArgsConstructor
@@ -20,4 +21,14 @@ public class PageResponse<T> {
     private long totalElements;
     private int totalPages;
     private boolean last;
+
+    public static <T> PageResponse<T> fromPage(Page<T> page) {
+        return new PageResponse<>(
+                page.getContent(),
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.isLast());
+    }
 }
