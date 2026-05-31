@@ -1,5 +1,11 @@
 package com.gmeo.finance_tracker.user;
 
-// TODO: Extend JpaRepository<User, Long> after User becomes a JPA entity.
-public interface UserRepository {
+import java.util.Optional;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface UserRepository extends JpaRepository<User, Long> {
+
+    boolean existsByEmail(String email);
+
+    Optional<User> findByEmail(String email);
 }
