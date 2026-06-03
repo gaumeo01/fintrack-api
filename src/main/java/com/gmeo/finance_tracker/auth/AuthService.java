@@ -1,8 +1,11 @@
 package com.gmeo.finance_tracker.auth;
 
+import com.gmeo.finance_tracker.auth.dto.LoginRequest;
+import com.gmeo.finance_tracker.auth.dto.LoginResponse;
 import com.gmeo.finance_tracker.auth.dto.RegisterRequest;
 import com.gmeo.finance_tracker.auth.dto.UserResponse;
 import com.gmeo.finance_tracker.common.exception.DuplicateResourceException;
+import com.gmeo.finance_tracker.common.exception.InvalidCredentialsException;
 import com.gmeo.finance_tracker.user.User;
 import com.gmeo.finance_tracker.user.UserRepository;
 import com.gmeo.finance_tracker.user.enums.UserRole;
@@ -35,6 +38,21 @@ public class AuthService {
 
         User savedUser = userRepository.save(user);
         return mapToResponse(savedUser);
+    }
+
+    public LoginResponse login(LoginRequest request) {
+        String normalizedEmail = request.getEmail().trim().toLowerCase();
+
+        User user = userRepository.findByEmail(normalizedEmail)
+                .orElseThrow(() -> new InvalidCredentialsException("Invalid email or password"));
+
+        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+            throw new InvalidCredentialsException("Invalid email or password");
+        }
+
+        LoginResponse response = new LoginResponse();
+        response.setUser(mapToResponse(user));
+        return response;
     }
 
     private UserResponse mapToResponse(User user) {

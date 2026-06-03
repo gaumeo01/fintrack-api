@@ -7,10 +7,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.gmeo.finance_tracker.auth.dto.LoginRequest;
+import com.gmeo.finance_tracker.auth.dto.LoginResponse;
 import com.gmeo.finance_tracker.auth.dto.RegisterRequest;
 import com.gmeo.finance_tracker.auth.dto.UserResponse;
 import com.gmeo.finance_tracker.common.exception.DuplicateResourceException;
 import com.gmeo.finance_tracker.common.exception.GlobalExceptionHandler;
+import com.gmeo.finance_tracker.common.exception.InvalidCredentialsException;
 import com.gmeo.finance_tracker.user.enums.UserRole;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
@@ -149,5 +152,124 @@ class AuthControllerValidationTests {
                                 """))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("Email is already registered"));
+    }
+
+    @Test
+    void loginUserSuccessfullyReturnsOk() throws Exception {
+        UserResponse user = new UserResponse();
+        user.setId(1L);
+        user.setEmail("test@example.com");
+        user.setFullName("Test User");
+        user.setRole(UserRole.USER);
+        user.setCreatedAt(LocalDateTime.of(2026, 5, 31, 10, 0));
+
+        LoginResponse response = new LoginResponse();
+        response.setUser(user);
+
+        when(authService.login(any(LoginRequest.class))).thenReturn(response);
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "test@example.com",
+                                  "password": "password123"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.id").value(1))
+                .andExpect(jsonPath("$.user.email").value("test@example.com"))
+                .andExpect(jsonPath("$.user.fullName").value("Test User"))
+                .andExpect(jsonPath("$.user.role").value("USER"));
+    }
+
+    @Test
+    void loginResponseDoesNotContainPasswordFields() throws Exception {
+        UserResponse user = new UserResponse();
+        user.setId(1L);
+        user.setEmail("test@example.com");
+        user.setFullName("Test User");
+        user.setRole(UserRole.USER);
+
+        LoginResponse response = new LoginResponse();
+        response.setUser(user);
+
+        when(authService.login(any(LoginRequest.class))).thenReturn(response);
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "test@example.com",
+                                  "password": "password123"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.password").doesNotExist())
+                .andExpect(jsonPath("$.passwordHash").doesNotExist())
+                .andExpect(jsonPath("$.user.password").doesNotExist())
+                .andExpect(jsonPath("$.user.passwordHash").doesNotExist());
+    }
+
+    @Test
+    void loginReturnsUnauthorizedForWrongPassword() throws Exception {
+        when(authService.login(any(LoginRequest.class)))
+                .thenThrow(new InvalidCredentialsException("Invalid email or password"));
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "test@example.com",
+                                  "password": "wrongpass123"
+                                }
+                                """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Invalid email or password"));
+    }
+
+    @Test
+    void loginReturnsUnauthorizedForUnknownEmail() throws Exception {
+        when(authService.login(any(LoginRequest.class)))
+                .thenThrow(new InvalidCredentialsException("Invalid email or password"));
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "missing@example.com",
+                                  "password": "password123"
+                                }
+                                """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Invalid email or password"));
+    }
+
+    @Test
+    void loginReturnsBadRequestForInvalidEmail() throws Exception {
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "not-an-email",
+                                  "password": "password123"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.validationErrors.email").exists());
+    }
+
+    @Test
+    void loginReturnsBadRequestForBlankPassword() throws Exception {
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "test@example.com",
+                                  "password": ""
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.validationErrors.password").exists());
     }
 }

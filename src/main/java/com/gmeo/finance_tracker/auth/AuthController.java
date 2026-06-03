@@ -1,5 +1,7 @@
 package com.gmeo.finance_tracker.auth;
 
+import com.gmeo.finance_tracker.auth.dto.LoginRequest;
+import com.gmeo.finance_tracker.auth.dto.LoginResponse;
 import com.gmeo.finance_tracker.auth.dto.RegisterRequest;
 import com.gmeo.finance_tracker.auth.dto.UserResponse;
 import jakarta.validation.Valid;
@@ -24,5 +26,10 @@ public class AuthController {
     public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request) {
         UserResponse response = authService.register(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/login")
+    public LoginResponse login(@Valid @RequestBody LoginRequest request) {
+        return authService.login(request);
     }
 }
