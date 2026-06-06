@@ -17,10 +17,12 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
     }
 
     public UserResponse register(RegisterRequest request) {
@@ -52,6 +54,8 @@ public class AuthService {
 
         LoginResponse response = new LoginResponse();
         response.setUser(mapToResponse(user));
+        response.setAccessToken(jwtService.generateAccessToken(user.getEmail()));
+        response.setTokenType("Bearer");
         return response;
     }
 

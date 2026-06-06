@@ -5,12 +5,19 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.gmeo.finance_tracker.auth.JwtService;
 import com.jayway.jsonpath.JsonPath;
+import com.gmeo.finance_tracker.user.User;
+import com.gmeo.finance_tracker.user.UserRepository;
+import com.gmeo.finance_tracker.user.enums.UserRole;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -21,11 +28,37 @@ class TransactionCreateAndFilterFlowTests {
     @Autowired
     private MockMvc mockMvc;
 
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private JwtService jwtService;
+
+    private String accessToken;
+
+    @BeforeEach
+    void setUpAuthentication() {
+        userRepository.deleteAll();
+
+        User user = new User();
+        user.setEmail("flow@example.com");
+        user.setPasswordHash(passwordEncoder.encode("password123"));
+        user.setFullName("Flow Test User");
+        user.setRole(UserRole.USER);
+        userRepository.save(user);
+
+        accessToken = jwtService.generateAccessToken(user.getEmail());
+    }
+
     @Test
     void createCategoryCreateTransactionAndFilterTransactions() throws Exception {
         Long categoryId = createExpenseCategory();
 
         mockMvc.perform(post("/api/transactions")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -47,6 +80,7 @@ class TransactionCreateAndFilterFlowTests {
                 .andExpect(jsonPath("$.transactionDate").value("2026-05-20"));
 
         mockMvc.perform(get("/api/transactions")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .param("type", "EXPENSE")
                         .param("categoryId", String.valueOf(categoryId))
                         .param("fromDate", "2026-05-01")
@@ -66,6 +100,7 @@ class TransactionCreateAndFilterFlowTests {
     @Test
     void createTransactionReturnsNotFoundForNonExistingCategoryId() throws Exception {
         mockMvc.perform(post("/api/transactions")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -83,6 +118,7 @@ class TransactionCreateAndFilterFlowTests {
     @Test
     void createTransactionReturnsBadRequestForNullCategoryId() throws Exception {
         mockMvc.perform(post("/api/transactions")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -101,6 +137,7 @@ class TransactionCreateAndFilterFlowTests {
     @Test
     void createTransactionReturnsBadRequestForMalformedRequest() throws Exception {
         mockMvc.perform(post("/api/transactions")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -114,6 +151,7 @@ class TransactionCreateAndFilterFlowTests {
 
     private Long createExpenseCategory() throws Exception {
         MvcResult categoryResult = mockMvc.perform(post("/api/categories")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {

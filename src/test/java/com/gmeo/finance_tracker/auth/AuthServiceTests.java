@@ -29,13 +29,15 @@ class AuthServiceTests {
 
     private UserRepository userRepository;
     private PasswordEncoder passwordEncoder;
+    private JwtService jwtService;
     private AuthService authService;
 
     @BeforeEach
     void setUp() {
         userRepository = Mockito.mock(UserRepository.class);
         passwordEncoder = new BCryptPasswordEncoder();
-        authService = new AuthService(userRepository, passwordEncoder);
+        jwtService = Mockito.mock(JwtService.class);
+        authService = new AuthService(userRepository, passwordEncoder, jwtService);
     }
 
     @Test
@@ -104,6 +106,7 @@ class AuthServiceTests {
     void loginReturnsUserForValidCredentials() {
         User user = createUser("test@example.com", passwordEncoder.encode("password123"));
         when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(user));
+        when(jwtService.generateAccessToken("test@example.com")).thenReturn("jwt-token");
 
         LoginResponse response = authService.login(createLoginRequest("test@example.com", "password123"));
 
@@ -111,16 +114,20 @@ class AuthServiceTests {
         assertThat(response.getUser().getEmail()).isEqualTo("test@example.com");
         assertThat(response.getUser().getFullName()).isEqualTo("Test User");
         assertThat(response.getUser().getRole()).isEqualTo(UserRole.USER);
+        assertThat(response.getAccessToken()).isEqualTo("jwt-token");
+        assertThat(response.getTokenType()).isEqualTo("Bearer");
     }
 
     @Test
     void loginNormalizesEmailBeforeLookup() {
         User user = createUser("test@example.com", passwordEncoder.encode("password123"));
         when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(user));
+        when(jwtService.generateAccessToken("test@example.com")).thenReturn("jwt-token");
 
         authService.login(createLoginRequest("  TEST@Example.COM  ", "password123"));
 
         verify(userRepository).findByEmail("test@example.com");
+        verify(jwtService).generateAccessToken("test@example.com");
     }
 
     @Test
