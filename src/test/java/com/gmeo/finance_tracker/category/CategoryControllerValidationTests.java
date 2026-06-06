@@ -10,17 +10,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.gmeo.finance_tracker.category.dto.CategoryRequest;
 import com.gmeo.finance_tracker.category.dto.CategoryResponse;
 import com.gmeo.finance_tracker.category.enums.CategoryType;
+import com.gmeo.finance_tracker.auth.JwtService;
 import com.gmeo.finance_tracker.common.exception.GlobalExceptionHandler;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(CategoryController.class)
 @Import(GlobalExceptionHandler.class)
+@WithMockUser
 class CategoryControllerValidationTests {
 
     @Autowired
@@ -28,6 +32,12 @@ class CategoryControllerValidationTests {
 
     @MockitoBean
     private CategoryService categoryService;
+
+    @MockitoBean
+    private JwtService jwtService;
+
+    @MockitoBean
+    private UserDetailsService userDetailsService;
 
     @Test
     void createCategoryReturnsCreatedForValidRequest() throws Exception {

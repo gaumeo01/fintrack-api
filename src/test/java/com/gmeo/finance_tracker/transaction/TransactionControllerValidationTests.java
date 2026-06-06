@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.gmeo.finance_tracker.category.enums.CategoryType;
+import com.gmeo.finance_tracker.auth.JwtService;
 import com.gmeo.finance_tracker.common.dto.PageResponse;
 import com.gmeo.finance_tracker.common.exception.GlobalExceptionHandler;
 import com.gmeo.finance_tracker.transaction.dto.TransactionRequest;
@@ -26,11 +27,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(TransactionController.class)
 @Import(GlobalExceptionHandler.class)
+@WithMockUser
 class TransactionControllerValidationTests {
 
     @Autowired
@@ -38,6 +42,12 @@ class TransactionControllerValidationTests {
 
     @MockitoBean
     private TransactionService transactionService;
+
+    @MockitoBean
+    private JwtService jwtService;
+
+    @MockitoBean
+    private UserDetailsService userDetailsService;
 
     @Test
     void getTransactionsReturnsPaginatedFilteredTransactions() throws Exception {

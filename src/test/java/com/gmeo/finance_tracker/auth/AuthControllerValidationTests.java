@@ -14,6 +14,7 @@ import com.gmeo.finance_tracker.auth.dto.UserResponse;
 import com.gmeo.finance_tracker.common.exception.DuplicateResourceException;
 import com.gmeo.finance_tracker.common.exception.GlobalExceptionHandler;
 import com.gmeo.finance_tracker.common.exception.InvalidCredentialsException;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import com.gmeo.finance_tracker.user.enums.UserRole;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
@@ -33,6 +34,12 @@ class AuthControllerValidationTests {
 
     @MockitoBean
     private AuthService authService;
+
+    @MockitoBean
+    private JwtService jwtService;
+
+    @MockitoBean
+    private UserDetailsService userDetailsService;
 
     @Test
     void registerUserSuccessfullyReturnsCreated() throws Exception {
@@ -165,6 +172,8 @@ class AuthControllerValidationTests {
 
         LoginResponse response = new LoginResponse();
         response.setUser(user);
+        response.setAccessToken("jwt-token");
+        response.setTokenType("Bearer");
 
         when(authService.login(any(LoginRequest.class))).thenReturn(response);
 
@@ -180,7 +189,9 @@ class AuthControllerValidationTests {
                 .andExpect(jsonPath("$.user.id").value(1))
                 .andExpect(jsonPath("$.user.email").value("test@example.com"))
                 .andExpect(jsonPath("$.user.fullName").value("Test User"))
-                .andExpect(jsonPath("$.user.role").value("USER"));
+                .andExpect(jsonPath("$.user.role").value("USER"))
+                .andExpect(jsonPath("$.accessToken").value("jwt-token"))
+                .andExpect(jsonPath("$.tokenType").value("Bearer"));
     }
 
     @Test
@@ -193,6 +204,8 @@ class AuthControllerValidationTests {
 
         LoginResponse response = new LoginResponse();
         response.setUser(user);
+        response.setAccessToken("jwt-token");
+        response.setTokenType("Bearer");
 
         when(authService.login(any(LoginRequest.class))).thenReturn(response);
 
