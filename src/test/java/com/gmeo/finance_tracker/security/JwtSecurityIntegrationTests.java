@@ -6,6 +6,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.gmeo.finance_tracker.auth.JwtService;
+import com.gmeo.finance_tracker.category.CategoryRepository;
+import com.gmeo.finance_tracker.transaction.TransactionRepository;
 import com.gmeo.finance_tracker.user.User;
 import com.gmeo.finance_tracker.user.UserRepository;
 import com.gmeo.finance_tracker.user.enums.UserRole;
@@ -30,6 +32,12 @@ class JwtSecurityIntegrationTests {
     private UserRepository userRepository;
 
     @Autowired
+    private TransactionRepository transactionRepository;
+
+    @Autowired
+    private CategoryRepository categoryRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Autowired
@@ -37,6 +45,8 @@ class JwtSecurityIntegrationTests {
 
     @BeforeEach
     void setUp() {
+        transactionRepository.deleteAll();
+        categoryRepository.deleteAll();
         userRepository.deleteAll();
 
         User user = new User();
