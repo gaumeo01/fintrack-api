@@ -1,7 +1,9 @@
 package com.gmeo.finance_tracker.security;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -66,6 +68,16 @@ class UserDataIsolationIntegrationTests {
                         .header(HttpHeaders.AUTHORIZATION, bearer(userAToken)))
                 .andExpect(status().isNotFound());
 
+        mockMvc.perform(put("/api/categories/{id}", categoryId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(userAToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(categoryJson("Changed")))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(delete("/api/categories/{id}", categoryId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(userAToken)))
+                .andExpect(status().isNotFound());
+
         mockMvc.perform(get("/api/categories")
                         .header(HttpHeaders.AUTHORIZATION, bearer(userAToken)))
                 .andExpect(status().isOk())
@@ -78,6 +90,16 @@ class UserDataIsolationIntegrationTests {
         Long transactionId = createTransaction(userBToken, categoryId, "User B Lunch");
 
         mockMvc.perform(get("/api/transactions/{id}", transactionId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(userAToken)))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(put("/api/transactions/{id}", transactionId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(userAToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(transactionJson(categoryId, "Changed")))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(delete("/api/transactions/{id}", transactionId)
                         .header(HttpHeaders.AUTHORIZATION, bearer(userAToken)))
                 .andExpect(status().isNotFound());
     }
@@ -124,12 +146,7 @@ class UserDataIsolationIntegrationTests {
         MvcResult result = mockMvc.perform(post("/api/categories")
                         .header(HttpHeaders.AUTHORIZATION, bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "name": "%s",
-                                  "type": "EXPENSE"
-                                }
-                                """.formatted(name)))
+                        .content(categoryJson(name)))
                 .andExpect(status().isCreated())
                 .andReturn();
 
@@ -157,6 +174,15 @@ class UserDataIsolationIntegrationTests {
                   "transactionDate": "2026-05-20"
                 }
                 """.formatted(categoryId, description);
+    }
+
+    private String categoryJson(String name) {
+        return """
+                {
+                  "name": "%s",
+                  "type": "EXPENSE"
+                }
+                """.formatted(name);
     }
 
     private String bearer(String token) {
