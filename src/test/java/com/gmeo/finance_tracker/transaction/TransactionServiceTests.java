@@ -12,9 +12,11 @@ import com.gmeo.finance_tracker.category.CategoryRepository;
 import com.gmeo.finance_tracker.category.enums.CategoryType;
 import com.gmeo.finance_tracker.common.dto.PageResponse;
 import com.gmeo.finance_tracker.common.exception.ResourceNotFoundException;
+import com.gmeo.finance_tracker.security.CurrentUserService;
 import com.gmeo.finance_tracker.transaction.dto.TransactionRequest;
 import com.gmeo.finance_tracker.transaction.dto.TransactionResponse;
 import com.gmeo.finance_tracker.transaction.enums.TransactionType;
+import com.gmeo.finance_tracker.user.User;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -33,13 +35,19 @@ class TransactionServiceTests {
 
     private TransactionRepository transactionRepository;
     private CategoryRepository categoryRepository;
+    private CurrentUserService currentUserService;
     private TransactionService transactionService;
+    private User currentUser;
 
     @BeforeEach
     void setUp() {
         transactionRepository = Mockito.mock(TransactionRepository.class);
         categoryRepository = Mockito.mock(CategoryRepository.class);
-        transactionService = new TransactionService(transactionRepository, categoryRepository);
+        currentUserService = Mockito.mock(CurrentUserService.class);
+        transactionService = new TransactionService(transactionRepository, categoryRepository, currentUserService);
+        currentUser = new User();
+        currentUser.setId(7L);
+        when(currentUserService.getCurrentUser()).thenReturn(currentUser);
     }
 
     @Test
@@ -59,7 +67,7 @@ class TransactionServiceTests {
         savedTransaction.setCreatedAt(LocalDateTime.of(2026, 5, 20, 10, 0));
         savedTransaction.setUpdatedAt(LocalDateTime.of(2026, 5, 20, 10, 0));
 
-        when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
+        when(categoryRepository.findByIdAndUserId(1L, 7L)).thenReturn(Optional.of(category));
         when(transactionRepository.save(any(Transaction.class))).thenReturn(savedTransaction);
 
         TransactionResponse response = transactionService.createTransaction(createRequest());
@@ -67,6 +75,7 @@ class TransactionServiceTests {
         ArgumentCaptor<Transaction> transactionCaptor = ArgumentCaptor.forClass(Transaction.class);
         verify(transactionRepository).save(transactionCaptor.capture());
         assertThat(transactionCaptor.getValue().getCategory()).isEqualTo(category);
+        assertThat(transactionCaptor.getValue().getUser()).isEqualTo(currentUser);
         assertThat(response.getCategoryId()).isEqualTo(1L);
         assertThat(response.getCategoryName()).isEqualTo("Food");
         assertThat(response.getCategoryType()).isEqualTo(CategoryType.EXPENSE);
@@ -74,7 +83,7 @@ class TransactionServiceTests {
 
     @Test
     void createTransactionThrowsResourceNotFoundExceptionWhenCategoryDoesNotExist() {
-        when(categoryRepository.findById(1L)).thenReturn(Optional.empty());
+        when(categoryRepository.findByIdAndUserId(1L, 7L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> transactionService.createTransaction(createRequest()))
                 .isInstanceOf(ResourceNotFoundException.class)
@@ -120,6 +129,66 @@ class TransactionServiceTests {
         assertThat(response.getTotalElements()).isEqualTo(1);
         assertThat(response.getTotalPages()).isEqualTo(1);
         assertThat(response.isLast()).isTrue();
+    }
+
+    @Test
+    void getAllTransactionsListsOnlyCurrentUsersTransactions() {
+        Transaction transaction = transaction(10L);
+        when(transactionRepository.findAllByUserId(7L)).thenReturn(List.of(transaction));
+
+        List<TransactionResponse> response = transactionService.getAllTransactions();
+
+        verify(transactionRepository).findAllByUserId(7L);
+        assertThat(response).extracting(TransactionResponse::getId).containsExactly(10L);
+    }
+
+    @Test
+    void cannotAccessAnotherUsersTransaction() {
+        when(transactionRepository.findByIdAndUserId(10L, 7L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> transactionService.getTransactionById(10L))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Transaction not found with id: 10");
+    }
+
+    @Test
+    void cannotUpdateAnotherUsersTransaction() {
+        when(transactionRepository.findByIdAndUserId(10L, 7L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> transactionService.updateTransaction(10L, createRequest()))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Transaction not found with id: 10");
+
+        verify(transactionRepository, never()).save(any(Transaction.class));
+    }
+
+    @Test
+    void cannotDeleteAnotherUsersTransaction() {
+        when(transactionRepository.findByIdAndUserId(10L, 7L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> transactionService.deleteTransaction(10L))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Transaction not found with id: 10");
+
+        verify(transactionRepository, never()).delete(any(Transaction.class));
+    }
+
+    private Transaction transaction(Long id) {
+        Category category = new Category();
+        category.setId(1L);
+        category.setName("Food");
+        category.setType(CategoryType.EXPENSE);
+
+        Transaction transaction = new Transaction();
+        transaction.setId(id);
+        transaction.setType(TransactionType.EXPENSE);
+        transaction.setAmount(new BigDecimal("25.50"));
+        transaction.setCategory(category);
+        transaction.setDescription("Lunch");
+        transaction.setTransactionDate(LocalDate.of(2026, 5, 20));
+        transaction.setCreatedAt(LocalDateTime.of(2026, 5, 20, 10, 0));
+        transaction.setUpdatedAt(LocalDateTime.of(2026, 5, 20, 10, 0));
+        return transaction;
     }
 
     private TransactionRequest createRequest() {

@@ -11,13 +11,14 @@ public final class TransactionSpecification {
     }
 
     public static Specification<Transaction> withFilters(
+            Long userId,
             TransactionType type,
             Long categoryId,
             LocalDate fromDate,
             LocalDate toDate,
             BigDecimal minAmount,
             BigDecimal maxAmount) {
-        Specification<Transaction> specification = (root, query, criteriaBuilder) -> criteriaBuilder.conjunction();
+        Specification<Transaction> specification = hasUserId(userId);
 
         if (type != null) {
             specification = specification.and(hasType(type));
@@ -44,6 +45,10 @@ public final class TransactionSpecification {
         }
 
         return specification;
+    }
+
+    private static Specification<Transaction> hasUserId(Long userId) {
+        return (root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get("user").get("id"), userId);
     }
 
     private static Specification<Transaction> hasType(TransactionType type) {

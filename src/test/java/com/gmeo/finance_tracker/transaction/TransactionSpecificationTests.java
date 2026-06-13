@@ -3,7 +3,6 @@ package com.gmeo.finance_tracker.transaction;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.gmeo.finance_tracker.transaction.enums.TransactionType;
@@ -35,7 +34,12 @@ class TransactionSpecificationTests {
         basePredicate = mock(Predicate.class);
         filterPredicate = mock(Predicate.class);
         combinedPredicate = mock(Predicate.class);
+        Path<Object> userPath = mock(Path.class);
+        Path<Long> userIdPath = mock(Path.class);
 
+        when(root.get("user")).thenReturn(userPath);
+        when(userPath.<Long>get("id")).thenReturn(userIdPath);
+        when(criteriaBuilder.equal(userIdPath, 7L)).thenReturn(filterPredicate);
         when(criteriaBuilder.conjunction()).thenReturn(basePredicate);
         when(criteriaBuilder.and(any(Predicate.class), any(Predicate.class))).thenReturn(combinedPredicate);
     }
@@ -47,6 +51,7 @@ class TransactionSpecificationTests {
         when(criteriaBuilder.equal(typePath, TransactionType.EXPENSE)).thenReturn(filterPredicate);
 
         Specification<Transaction> specification = TransactionSpecification.withFilters(
+                7L,
                 TransactionType.EXPENSE,
                 null,
                 null,
@@ -68,6 +73,7 @@ class TransactionSpecificationTests {
         when(criteriaBuilder.equal(categoryIdPath, 1L)).thenReturn(filterPredicate);
 
         Specification<Transaction> specification = TransactionSpecification.withFilters(
+                7L,
                 null,
                 1L,
                 null,
@@ -92,6 +98,7 @@ class TransactionSpecificationTests {
         when(criteriaBuilder.lessThanOrEqualTo(transactionDatePath, toDate)).thenReturn(filterPredicate);
 
         Specification<Transaction> specification = TransactionSpecification.withFilters(
+                7L,
                 null,
                 null,
                 fromDate,
@@ -115,6 +122,7 @@ class TransactionSpecificationTests {
         when(criteriaBuilder.lessThanOrEqualTo(amountPath, maxAmount)).thenReturn(filterPredicate);
 
         Specification<Transaction> specification = TransactionSpecification.withFilters(
+                7L,
                 null,
                 null,
                 null,
@@ -129,8 +137,9 @@ class TransactionSpecificationTests {
     }
 
     @Test
-    void withFiltersDoesNotAddFiltersWhenParametersAreMissing() {
+    void withFiltersAlwaysAddsUserFilterWhenOtherParametersAreMissing() {
         Specification<Transaction> specification = TransactionSpecification.withFilters(
+                7L,
                 null,
                 null,
                 null,
@@ -140,7 +149,6 @@ class TransactionSpecificationTests {
 
         specification.toPredicate(root, query, criteriaBuilder);
 
-        verify(criteriaBuilder).conjunction();
-        verifyNoMoreInteractions(root);
+        verify(root).get("user");
     }
 }

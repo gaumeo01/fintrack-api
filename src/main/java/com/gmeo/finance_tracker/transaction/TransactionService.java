@@ -4,9 +4,11 @@ import com.gmeo.finance_tracker.category.Category;
 import com.gmeo.finance_tracker.category.CategoryRepository;
 import com.gmeo.finance_tracker.common.dto.PageResponse;
 import com.gmeo.finance_tracker.common.exception.ResourceNotFoundException;
+import com.gmeo.finance_tracker.security.CurrentUserService;
 import com.gmeo.finance_tracker.transaction.dto.TransactionRequest;
 import com.gmeo.finance_tracker.transaction.dto.TransactionResponse;
 import com.gmeo.finance_tracker.transaction.enums.TransactionType;
+import com.gmeo.finance_tracker.user.User;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -20,21 +22,26 @@ public class TransactionService {
 
     private final TransactionRepository transactionRepository;
     private final CategoryRepository categoryRepository;
+    private final CurrentUserService currentUserService;
 
     public TransactionService(
             TransactionRepository transactionRepository,
-            CategoryRepository categoryRepository) {
+            CategoryRepository categoryRepository,
+            CurrentUserService currentUserService) {
         this.transactionRepository = transactionRepository;
         this.categoryRepository = categoryRepository;
+        this.currentUserService = currentUserService;
     }
 
     public TransactionResponse createTransaction(TransactionRequest request) {
-        Category category = findCategoryById(request.getCategoryId());
+        User currentUser = currentUserService.getCurrentUser();
+        Category category = findOwnedCategory(request.getCategoryId(), currentUser.getId());
 
         Transaction transaction = new Transaction();
         transaction.setType(request.getType());
         transaction.setAmount(request.getAmount());
         transaction.setCategory(category);
+        transaction.setUser(currentUser);
         transaction.setDescription(request.getDescription());
         transaction.setTransactionDate(request.getTransactionDate());
 
@@ -43,7 +50,8 @@ public class TransactionService {
     }
 
     public List<TransactionResponse> getAllTransactions() {
-        return transactionRepository.findAll()
+        User currentUser = currentUserService.getCurrentUser();
+        return transactionRepository.findAllByUserId(currentUser.getId())
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
@@ -57,7 +65,9 @@ public class TransactionService {
             BigDecimal minAmount,
             BigDecimal maxAmount,
             Pageable pageable) {
+        User currentUser = currentUserService.getCurrentUser();
         Specification<Transaction> specification = TransactionSpecification.withFilters(
+                currentUser.getId(),
                 type,
                 categoryId,
                 fromDate,
@@ -72,16 +82,15 @@ public class TransactionService {
     }
 
     public TransactionResponse getTransactionById(Long id) {
-        Transaction transaction = transactionRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Transaction not found with id: " + id));
+        Transaction transaction = findOwnedTransaction(id);
 
         return mapToResponse(transaction);
     }
 
     public TransactionResponse updateTransaction(Long id, TransactionRequest request) {
-        Transaction transaction = transactionRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Transaction not found with id: " + id));
-        Category category = findCategoryById(request.getCategoryId());
+        User currentUser = currentUserService.getCurrentUser();
+        Transaction transaction = findOwnedTransaction(id, currentUser.getId());
+        Category category = findOwnedCategory(request.getCategoryId(), currentUser.getId());
 
         transaction.setType(request.getType());
         transaction.setAmount(request.getAmount());
@@ -94,15 +103,23 @@ public class TransactionService {
     }
 
     public void deleteTransaction(Long id) {
-        Transaction transaction = transactionRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Transaction not found with id: " + id));
+        Transaction transaction = findOwnedTransaction(id);
 
         transactionRepository.delete(transaction);
     }
 
-    private Category findCategoryById(Long categoryId) {
-        return categoryRepository.findById(categoryId)
+    private Category findOwnedCategory(Long categoryId, Long userId) {
+        return categoryRepository.findByIdAndUserId(categoryId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + categoryId));
+    }
+
+    private Transaction findOwnedTransaction(Long id) {
+        return findOwnedTransaction(id, currentUserService.getCurrentUser().getId());
+    }
+
+    private Transaction findOwnedTransaction(Long id, Long userId) {
+        return transactionRepository.findByIdAndUserId(id, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Transaction not found with id: " + id));
     }
 
     private TransactionResponse mapToResponse(Transaction transaction) {

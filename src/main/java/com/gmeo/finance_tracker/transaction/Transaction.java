@@ -2,6 +2,7 @@ package com.gmeo.finance_tracker.transaction;
 
 import com.gmeo.finance_tracker.category.Category;
 import com.gmeo.finance_tracker.transaction.enums.TransactionType;
+import com.gmeo.finance_tracker.user.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -41,6 +42,10 @@ public class Transaction {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
     private Category category;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
     @Column(length = 225)
     private String description;
