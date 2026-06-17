@@ -8,21 +8,15 @@ import com.gmeo.finance_tracker.category.enums.CategoryType;
 import com.gmeo.finance_tracker.common.exception.BadRequestException;
 import com.gmeo.finance_tracker.common.exception.DuplicateResourceException;
 import com.gmeo.finance_tracker.common.exception.ResourceNotFoundException;
+import com.gmeo.finance_tracker.common.util.DateTimeUtils;
 import com.gmeo.finance_tracker.security.CurrentUserService;
 import com.gmeo.finance_tracker.user.User;
 import java.time.LocalDate;
-import java.time.YearMonth;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
-import java.time.format.ResolverStyle;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
 @Service
 public class BudgetService {
-
-    private static final DateTimeFormatter MONTH_FORMATTER = DateTimeFormatter.ofPattern("uuuu-MM")
-            .withResolverStyle(ResolverStyle.STRICT);
 
     private final BudgetRepository budgetRepository;
     private final CategoryRepository categoryRepository;
@@ -40,7 +34,7 @@ public class BudgetService {
     public BudgetResponse createBudget(BudgetRequest request) {
         User currentUser = currentUserService.getCurrentUser();
         Category category = findOwnedExpenseCategory(request.getCategoryId(), currentUser.getId());
-        LocalDate month = parseMonth(request.getMonth());
+        LocalDate month = DateTimeUtils.parseMonthStart(request.getMonth());
 
         if (budgetRepository.existsByUserIdAndCategoryIdAndMonth(currentUser.getId(), category.getId(), month)) {
             throw new DuplicateResourceException("Budget already exists for this category and month");
@@ -58,7 +52,7 @@ public class BudgetService {
 
     public List<BudgetResponse> getBudgets(String month) {
         User currentUser = currentUserService.getCurrentUser();
-        LocalDate budgetMonth = parseMonth(month);
+        LocalDate budgetMonth = DateTimeUtils.parseMonthStart(month);
 
         return budgetRepository.findAllByUserIdAndMonthOrderByCategoryNameAsc(currentUser.getId(), budgetMonth)
                 .stream()
@@ -76,7 +70,7 @@ public class BudgetService {
         User currentUser = currentUserService.getCurrentUser();
         Budget budget = findOwnedBudget(id, currentUser.getId());
         Category category = findOwnedExpenseCategory(request.getCategoryId(), currentUser.getId());
-        LocalDate month = parseMonth(request.getMonth());
+        LocalDate month = DateTimeUtils.parseMonthStart(request.getMonth());
 
         if (budgetRepository.existsByUserIdAndCategoryIdAndMonthAndIdNot(
                 currentUser.getId(),
@@ -118,18 +112,6 @@ public class BudgetService {
                 .orElseThrow(() -> new ResourceNotFoundException("Budget not found with id: " + id));
     }
 
-    private LocalDate parseMonth(String month) {
-        try {
-            YearMonth yearMonth = YearMonth.parse(month, MONTH_FORMATTER);
-            if (yearMonth.getYear() < 1) {
-                throw new DateTimeParseException("Invalid year", month, 0);
-            }
-            return yearMonth.atDay(1);
-        } catch (DateTimeParseException exception) {
-            throw new BadRequestException("month must use YYYY-MM format");
-        }
-    }
-
     private BudgetResponse mapToResponse(Budget budget) {
         BudgetResponse response = new BudgetResponse();
         response.setId(budget.getId());
@@ -137,7 +119,7 @@ public class BudgetService {
         response.setCategoryName(budget.getCategory().getName());
         response.setCategoryType(budget.getCategory().getType());
         response.setAmount(budget.getAmount());
-        response.setMonth(YearMonth.from(budget.getMonth()).format(MONTH_FORMATTER));
+        response.setMonth(DateTimeUtils.formatMonth(budget.getMonth()));
         response.setCreatedAt(budget.getCreatedAt());
         response.setUpdatedAt(budget.getUpdatedAt());
         return response;

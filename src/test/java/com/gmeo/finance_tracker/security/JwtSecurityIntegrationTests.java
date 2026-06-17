@@ -125,6 +125,13 @@ class JwtSecurityIntegrationTests {
     }
 
     @Test
+    void budgetUsageWithoutTokenReturnsUnauthorized() throws Exception {
+        mockMvc.perform(get("/api/budgets/usage")
+                        .param("month", "2026-06"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void protectedEndpointWithValidBearerTokenIsAllowed() throws Exception {
         String token = jwtService.generateAccessToken("test@example.com");
 

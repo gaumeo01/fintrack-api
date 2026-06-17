@@ -2,6 +2,7 @@ package com.gmeo.finance_tracker.budget;
 
 import com.gmeo.finance_tracker.budget.dto.BudgetRequest;
 import com.gmeo.finance_tracker.budget.dto.BudgetResponse;
+import com.gmeo.finance_tracker.budget.dto.BudgetUsageResponse;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -21,9 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class BudgetController {
 
     private final BudgetService budgetService;
+    private final BudgetUsageService budgetUsageService;
 
-    public BudgetController(BudgetService budgetService) {
+    public BudgetController(BudgetService budgetService, BudgetUsageService budgetUsageService) {
         this.budgetService = budgetService;
+        this.budgetUsageService = budgetUsageService;
     }
 
     @PostMapping
@@ -35,6 +38,11 @@ public class BudgetController {
     @GetMapping
     public List<BudgetResponse> getBudgets(@RequestParam String month) {
         return budgetService.getBudgets(month);
+    }
+
+    @GetMapping("/usage")
+    public BudgetUsageResponse getBudgetUsage(@RequestParam String month) {
+        return budgetUsageService.getBudgetUsage(month);
     }
 
     @GetMapping("/{id}")

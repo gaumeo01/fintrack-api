@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.gmeo.finance_tracker.auth.JwtService;
 import com.gmeo.finance_tracker.budget.dto.BudgetRequest;
 import com.gmeo.finance_tracker.budget.dto.BudgetResponse;
+import com.gmeo.finance_tracker.budget.dto.BudgetUsageResponse;
 import com.gmeo.finance_tracker.category.enums.CategoryType;
 import com.gmeo.finance_tracker.common.exception.BadRequestException;
 import com.gmeo.finance_tracker.common.exception.GlobalExceptionHandler;
@@ -37,6 +38,9 @@ class BudgetControllerValidationTests {
 
     @MockitoBean
     private BudgetService budgetService;
+
+    @MockitoBean
+    private BudgetUsageService budgetUsageService;
 
     @MockitoBean
     private JwtService jwtService;
@@ -148,6 +152,40 @@ class BudgetControllerValidationTests {
                 .andExpect(jsonPath("$.validationErrors.month").exists());
 
         verifyNoInteractions(budgetService);
+    }
+
+    @Test
+    void getBudgetUsageReturnsUsageForMonth() throws Exception {
+        BudgetUsageResponse response = new BudgetUsageResponse();
+        response.setMonth("2026-06");
+        response.setItems(List.of());
+        when(budgetUsageService.getBudgetUsage("2026-06")).thenReturn(response);
+
+        mockMvc.perform(get("/api/budgets/usage")
+                        .param("month", "2026-06"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.month").value("2026-06"))
+                .andExpect(jsonPath("$.items").isEmpty());
+    }
+
+    @Test
+    void getBudgetUsageReturnsBadRequestForMissingMonth() throws Exception {
+        mockMvc.perform(get("/api/budgets/usage"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.validationErrors.month").exists());
+
+        verifyNoInteractions(budgetUsageService);
+    }
+
+    @Test
+    void getBudgetUsageReturnsBadRequestForInvalidMonth() throws Exception {
+        when(budgetUsageService.getBudgetUsage("2026-13"))
+                .thenThrow(new BadRequestException("month must use YYYY-MM format"));
+
+        mockMvc.perform(get("/api/budgets/usage")
+                        .param("month", "2026-13"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("month must use YYYY-MM format"));
     }
 
     private BudgetResponse response() {
