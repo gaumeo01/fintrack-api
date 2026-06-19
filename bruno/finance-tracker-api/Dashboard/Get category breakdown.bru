@@ -1,0 +1,15 @@
+meta {
+  name: Get category breakdown
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/dashboard/category-breakdown?fromDate={{fromDate}}&toDate={{toDate}}&type=EXPENSE
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
