@@ -29,6 +29,7 @@ import org.mockito.Mockito;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 
 class TransactionServiceTests {
@@ -140,6 +141,56 @@ class TransactionServiceTests {
 
         verify(transactionRepository).findAllByUserId(7L);
         assertThat(response).extracting(TransactionResponse::getId).containsExactly(10L);
+    }
+
+    @Test
+    void exportTransactionsReturnsCsvWithEscapedValues() {
+        Category category = new Category();
+        category.setId(1L);
+        category.setName("Food, \"Groceries\"");
+        category.setType(CategoryType.EXPENSE);
+
+        Transaction transaction = new Transaction();
+        transaction.setId(10L);
+        transaction.setType(TransactionType.EXPENSE);
+        transaction.setAmount(new BigDecimal("25.50"));
+        transaction.setCategory(category);
+        transaction.setDescription("Lunch,\nwith \"team\"");
+        transaction.setTransactionDate(LocalDate.of(2026, 5, 20));
+        transaction.setCreatedAt(LocalDateTime.of(2026, 5, 20, 10, 0));
+        transaction.setUpdatedAt(LocalDateTime.of(2026, 5, 20, 11, 30));
+
+        when(transactionRepository.findAll(Mockito.<Specification<Transaction>>any(), any(Sort.class)))
+                .thenReturn(List.of(transaction));
+
+        String csv = transactionService.exportTransactions(
+                TransactionType.EXPENSE,
+                1L,
+                LocalDate.of(2026, 5, 1),
+                LocalDate.of(2026, 5, 31),
+                new BigDecimal("10"),
+                new BigDecimal("100"));
+
+        assertThat(csv).isEqualTo(
+                "id,type,amount,categoryId,categoryName,description,transactionDate,createdAt,updatedAt\n"
+                        + "10,EXPENSE,25.50,1,\"Food, \"\"Groceries\"\"\",\"Lunch,\n"
+                        + "with \"\"team\"\"\",2026-05-20,2026-05-20T10:00,2026-05-20T11:30");
+
+        ArgumentCaptor<Sort> sortCaptor = ArgumentCaptor.forClass(Sort.class);
+        verify(transactionRepository).findAll(Mockito.<Specification<Transaction>>any(), sortCaptor.capture());
+        assertThat(sortCaptor.getValue().getOrderFor("transactionDate").getDirection()).isEqualTo(Sort.Direction.DESC);
+        assertThat(sortCaptor.getValue().getOrderFor("id").getDirection()).isEqualTo(Sort.Direction.DESC);
+    }
+
+    @Test
+    void exportTransactionsReturnsOnlyHeaderWhenNoTransactionsMatch() {
+        when(transactionRepository.findAll(Mockito.<Specification<Transaction>>any(), any(Sort.class)))
+                .thenReturn(List.of());
+
+        String csv = transactionService.exportTransactions(null, null, null, null, null, null);
+
+        assertThat(csv).isEqualTo(
+                "id,type,amount,categoryId,categoryName,description,transactionDate,createdAt,updatedAt");
     }
 
     @Test

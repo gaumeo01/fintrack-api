@@ -1,5 +1,6 @@
 package com.gmeo.finance_tracker.security;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -135,6 +136,26 @@ class UserDataIsolationIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].description").value("User A Lunch"));
+    }
+
+    @Test
+    void transactionExportOnlyReturnsAuthenticatedUsersData() throws Exception {
+        Long userACategoryId = createCategory(userAToken, "User A Food");
+        Long userBCategoryId = createCategory(userBToken, "User B Food");
+        createTransaction(userAToken, userACategoryId, "User A Lunch");
+        createTransaction(userBToken, userBCategoryId, "User B Lunch");
+
+        MvcResult result = mockMvc.perform(get("/api/transactions/export")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(userAToken))
+                        .param("type", "EXPENSE")
+                        .param("fromDate", "2026-05-01")
+                        .param("toDate", "2026-05-31"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String csv = result.getResponse().getContentAsString();
+        assertThat(csv).contains("User A Lunch");
+        assertThat(csv).doesNotContain("User B Lunch");
     }
 
     private String createUserAndToken(String email, String fullName) {

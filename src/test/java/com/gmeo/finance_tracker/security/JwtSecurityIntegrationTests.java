@@ -125,6 +125,12 @@ class JwtSecurityIntegrationTests {
     }
 
     @Test
+    void transactionExportWithoutTokenReturnsUnauthorized() throws Exception {
+        mockMvc.perform(get("/api/transactions/export"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void budgetUsageWithoutTokenReturnsUnauthorized() throws Exception {
         mockMvc.perform(get("/api/budgets/usage")
                         .param("month", "2026-06"))
