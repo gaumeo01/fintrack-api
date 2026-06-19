@@ -7,6 +7,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -142,6 +144,69 @@ class TransactionControllerValidationTests {
         Sort.Order order = pageableCaptor.getValue().getSort().getOrderFor("transactionDate");
         org.assertj.core.api.Assertions.assertThat(order).isNotNull();
         org.assertj.core.api.Assertions.assertThat(order.getDirection()).isEqualTo(Sort.Direction.DESC);
+    }
+
+    @Test
+    void exportTransactionsReturnsCsvAttachment() throws Exception {
+        String csv = "id,type,amount,categoryId,categoryName,description,transactionDate,createdAt,updatedAt\n"
+                + "1,EXPENSE,25.50,1,Food,Lunch,2026-05-20,2026-05-20T10:00,2026-05-20T10:00";
+
+        when(transactionService.exportTransactions(
+                eq(TransactionType.EXPENSE),
+                eq(1L),
+                eq(LocalDate.of(2026, 5, 1)),
+                eq(LocalDate.of(2026, 5, 31)),
+                eq(new BigDecimal("10")),
+                eq(new BigDecimal("100"))))
+                .thenReturn(csv);
+
+        mockMvc.perform(get("/api/transactions/export")
+                        .param("type", "EXPENSE")
+                        .param("categoryId", "1")
+                        .param("fromDate", "2026-05-01")
+                        .param("toDate", "2026-05-31")
+                        .param("minAmount", "10")
+                        .param("maxAmount", "100"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.parseMediaType("text/csv")))
+                .andExpect(header().string(
+                        "Content-Disposition",
+                        "attachment; filename=\"transactions-export.csv\""))
+                .andExpect(content().string(csv));
+
+        verify(transactionService).exportTransactions(
+                eq(TransactionType.EXPENSE),
+                eq(1L),
+                eq(LocalDate.of(2026, 5, 1)),
+                eq(LocalDate.of(2026, 5, 31)),
+                eq(new BigDecimal("10")),
+                eq(new BigDecimal("100")));
+    }
+
+    @Test
+    void exportTransactionsReturnsHeaderOnlyCsv() throws Exception {
+        String csv = "id,type,amount,categoryId,categoryName,description,transactionDate,createdAt,updatedAt";
+        when(transactionService.exportTransactions(
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null)))
+                .thenReturn(csv);
+
+        mockMvc.perform(get("/api/transactions/export"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.parseMediaType("text/csv")))
+                .andExpect(content().string(csv));
+
+        verify(transactionService).exportTransactions(
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null));
     }
 
     @Test

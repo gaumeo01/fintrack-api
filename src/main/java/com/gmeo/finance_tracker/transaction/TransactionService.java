@@ -14,11 +14,15 @@ import java.time.LocalDate;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 @Service
 public class TransactionService {
+
+    private static final String CSV_HEADER =
+            "id,type,amount,categoryId,categoryName,description,transactionDate,createdAt,updatedAt";
 
     private final TransactionRepository transactionRepository;
     private final CategoryRepository categoryRepository;
@@ -81,6 +85,54 @@ public class TransactionService {
         return PageResponse.fromPage(transactionPage);
     }
 
+    public String exportTransactions(
+            TransactionType type,
+            Long categoryId,
+            LocalDate fromDate,
+            LocalDate toDate,
+            BigDecimal minAmount,
+            BigDecimal maxAmount) {
+        User currentUser = currentUserService.getCurrentUser();
+        Specification<Transaction> specification = TransactionSpecification.withFilters(
+                currentUser.getId(),
+                type,
+                categoryId,
+                fromDate,
+                toDate,
+                minAmount,
+                maxAmount);
+
+        Sort sort = Sort.by(
+                Sort.Order.desc("transactionDate"),
+                Sort.Order.desc("id"));
+
+        List<Transaction> transactions = transactionRepository.findAll(specification, sort);
+
+        StringBuilder csv = new StringBuilder(CSV_HEADER);
+        for (Transaction transaction : transactions) {
+            csv.append('\n')
+                    .append(csvValue(transaction.getId()))
+                    .append(',')
+                    .append(csvValue(transaction.getType()))
+                    .append(',')
+                    .append(csvValue(transaction.getAmount()))
+                    .append(',')
+                    .append(csvValue(transaction.getCategory().getId()))
+                    .append(',')
+                    .append(csvValue(transaction.getCategory().getName()))
+                    .append(',')
+                    .append(csvValue(transaction.getDescription()))
+                    .append(',')
+                    .append(csvValue(transaction.getTransactionDate()))
+                    .append(',')
+                    .append(csvValue(transaction.getCreatedAt()))
+                    .append(',')
+                    .append(csvValue(transaction.getUpdatedAt()));
+        }
+
+        return csv.toString();
+    }
+
     public TransactionResponse getTransactionById(Long id) {
         Transaction transaction = findOwnedTransaction(id);
 
@@ -135,5 +187,18 @@ public class TransactionService {
         response.setCreatedAt(transaction.getCreatedAt());
         response.setUpdatedAt(transaction.getUpdatedAt());
         return response;
+    }
+
+    private String csvValue(Object value) {
+        if (value == null) {
+            return "";
+        }
+
+        String text = value.toString();
+        if (text.contains(",") || text.contains("\"") || text.contains("\n") || text.contains("\r")) {
+            return "\"" + text.replace("\"", "\"\"") + "\"";
+        }
+
+        return text;
     }
 }
