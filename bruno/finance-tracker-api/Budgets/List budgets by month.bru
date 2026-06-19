@@ -1,0 +1,15 @@
+meta {
+  name: List budgets by month
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/budgets?month={{month}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}

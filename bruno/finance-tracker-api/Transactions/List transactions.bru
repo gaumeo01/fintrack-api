@@ -1,0 +1,15 @@
+meta {
+  name: List transactions
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/transactions?page=0&size=20&sort=transactionDate,desc
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}

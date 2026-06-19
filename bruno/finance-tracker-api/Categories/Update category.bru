@@ -1,0 +1,23 @@
+meta {
+  name: Update category
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{baseUrl}}/api/categories/{{categoryId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "Groceries",
+    "type": "EXPENSE"
+  }
+}

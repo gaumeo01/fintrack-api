@@ -1,0 +1,15 @@
+meta {
+  name: Get dashboard trend by DAY
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/dashboard/trend?fromDate={{fromDate}}&toDate={{toDate}}&groupBy=DAY
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}

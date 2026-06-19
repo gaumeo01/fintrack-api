@@ -1,0 +1,15 @@
+meta {
+  name: Filter transactions by type categoryId fromDate toDate minAmount maxAmount
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/transactions?type=EXPENSE&categoryId={{categoryId}}&fromDate={{fromDate}}&toDate={{toDate}}&minAmount=10.00&maxAmount=1000000.00&page=0&size=20&sort=transactionDate,desc
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
