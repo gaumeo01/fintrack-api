@@ -68,6 +68,7 @@ public class TransactionService {
             LocalDate toDate,
             BigDecimal minAmount,
             BigDecimal maxAmount,
+            String keyword,
             Pageable pageable) {
         User currentUser = currentUserService.getCurrentUser();
         Specification<Transaction> specification = TransactionSpecification.withFilters(
@@ -77,7 +78,8 @@ public class TransactionService {
                 fromDate,
                 toDate,
                 minAmount,
-                maxAmount);
+                maxAmount,
+                keyword);
 
         Page<TransactionResponse> transactionPage = transactionRepository.findAll(specification, pageable)
                 .map(this::mapToResponse);
@@ -91,7 +93,8 @@ public class TransactionService {
             LocalDate fromDate,
             LocalDate toDate,
             BigDecimal minAmount,
-            BigDecimal maxAmount) {
+            BigDecimal maxAmount,
+            String keyword) {
         User currentUser = currentUserService.getCurrentUser();
         Specification<Transaction> specification = TransactionSpecification.withFilters(
                 currentUser.getId(),
@@ -100,7 +103,8 @@ public class TransactionService {
                 fromDate,
                 toDate,
                 minAmount,
-                maxAmount);
+                maxAmount,
+                keyword);
 
         Sort sort = Sort.by(
                 Sort.Order.desc("transactionDate"),

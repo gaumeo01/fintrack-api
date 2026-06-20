@@ -131,6 +131,22 @@ class JwtSecurityIntegrationTests {
     }
 
     @Test
+    void monthlyReportWithoutTokenReturnsUnauthorized() throws Exception {
+        mockMvc.perform(get("/api/reports/monthly")
+                        .param("month", "2026-06"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void openApiDocsArePublic() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.info.title").value("Finance Tracker API"))
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.type").value("http"))
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.scheme").value("bearer"));
+    }
+
+    @Test
     void budgetUsageWithoutTokenReturnsUnauthorized() throws Exception {
         mockMvc.perform(get("/api/budgets/usage")
                         .param("month", "2026-06"))

@@ -1,0 +1,15 @@
+meta {
+  name: Search transactions by keyword
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/transactions?keyword={{keyword}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}

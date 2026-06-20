@@ -1,6 +1,7 @@
 package com.gmeo.finance_tracker.transaction;
 
 import com.gmeo.finance_tracker.transaction.enums.TransactionType;
+import jakarta.persistence.criteria.Expression;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import org.springframework.data.jpa.domain.Specification;
@@ -18,6 +19,18 @@ public final class TransactionSpecification {
             LocalDate toDate,
             BigDecimal minAmount,
             BigDecimal maxAmount) {
+        return withFilters(userId, type, categoryId, fromDate, toDate, minAmount, maxAmount, null);
+    }
+
+    public static Specification<Transaction> withFilters(
+            Long userId,
+            TransactionType type,
+            Long categoryId,
+            LocalDate fromDate,
+            LocalDate toDate,
+            BigDecimal minAmount,
+            BigDecimal maxAmount,
+            String keyword) {
         Specification<Transaction> specification = hasUserId(userId);
 
         if (type != null) {
@@ -42,6 +55,10 @@ public final class TransactionSpecification {
 
         if (maxAmount != null) {
             specification = specification.and(amountLessThanOrEqualTo(maxAmount));
+        }
+
+        if (keyword != null && !keyword.isBlank()) {
+            specification = specification.and(hasKeyword(keyword));
         }
 
         return specification;
@@ -75,5 +92,16 @@ public final class TransactionSpecification {
 
     private static Specification<Transaction> amountLessThanOrEqualTo(BigDecimal maxAmount) {
         return (root, query, criteriaBuilder) -> criteriaBuilder.lessThanOrEqualTo(root.get("amount"), maxAmount);
+    }
+
+    private static Specification<Transaction> hasKeyword(String keyword) {
+        return (root, query, criteriaBuilder) -> {
+            String pattern = "%" + keyword.toLowerCase() + "%";
+            Expression<String> description = criteriaBuilder.lower(root.<String>get("description"));
+            Expression<String> categoryName = criteriaBuilder.lower(root.get("category").<String>get("name"));
+            return criteriaBuilder.or(
+                    criteriaBuilder.like(description, pattern),
+                    criteriaBuilder.like(categoryName, pattern));
+        };
     }
 }

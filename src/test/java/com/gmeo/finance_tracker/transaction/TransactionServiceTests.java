@@ -121,6 +121,7 @@ class TransactionServiceTests {
                 LocalDate.of(2026, 5, 31),
                 new BigDecimal("10"),
                 new BigDecimal("100"),
+                "lunch",
                 pageable);
 
         assertThat(response.getContent()).hasSize(1);
@@ -169,7 +170,8 @@ class TransactionServiceTests {
                 LocalDate.of(2026, 5, 1),
                 LocalDate.of(2026, 5, 31),
                 new BigDecimal("10"),
-                new BigDecimal("100"));
+                new BigDecimal("100"),
+                "lunch");
 
         assertThat(csv).isEqualTo(
                 "id,type,amount,categoryId,categoryName,description,transactionDate,createdAt,updatedAt\n"
@@ -187,7 +189,7 @@ class TransactionServiceTests {
         when(transactionRepository.findAll(Mockito.<Specification<Transaction>>any(), any(Sort.class)))
                 .thenReturn(List.of());
 
-        String csv = transactionService.exportTransactions(null, null, null, null, null, null);
+        String csv = transactionService.exportTransactions(null, null, null, null, null, null, null);
 
         assertThat(csv).isEqualTo(
                 "id,type,amount,categoryId,categoryName,description,transactionDate,createdAt,updatedAt");
