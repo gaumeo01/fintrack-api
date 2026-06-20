@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 import com.gmeo.finance_tracker.transaction.enums.TransactionType;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
@@ -146,6 +147,93 @@ class TransactionSpecificationTests {
                 null,
                 null,
                 null);
+
+        specification.toPredicate(root, query, criteriaBuilder);
+
+        verify(root).get("user");
+    }
+
+    @Test
+    void withFiltersAddsKeywordFilterForDescription() {
+        Path<String> descriptionPath = mock(Path.class);
+        Expression<String> lowerDescription = mock(Expression.class);
+        Path<Object> categoryPath = mock(Path.class);
+        Path<String> categoryNamePath = mock(Path.class);
+        Expression<String> lowerCategoryName = mock(Expression.class);
+        Predicate descriptionPredicate = mock(Predicate.class);
+        Predicate categoryPredicate = mock(Predicate.class);
+
+        when(root.<String>get("description")).thenReturn(descriptionPath);
+        when(root.get("category")).thenReturn(categoryPath);
+        when(categoryPath.<String>get("name")).thenReturn(categoryNamePath);
+        when(criteriaBuilder.lower(descriptionPath)).thenReturn(lowerDescription);
+        when(criteriaBuilder.lower(categoryNamePath)).thenReturn(lowerCategoryName);
+        when(criteriaBuilder.like(lowerDescription, "%lunch%")).thenReturn(descriptionPredicate);
+        when(criteriaBuilder.like(lowerCategoryName, "%lunch%")).thenReturn(categoryPredicate);
+        when(criteriaBuilder.or(descriptionPredicate, categoryPredicate)).thenReturn(filterPredicate);
+
+        Specification<Transaction> specification = TransactionSpecification.withFilters(
+                7L,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "Lunch");
+
+        specification.toPredicate(root, query, criteriaBuilder);
+
+        verify(criteriaBuilder).like(lowerDescription, "%lunch%");
+    }
+
+    @Test
+    void withFiltersAddsKeywordFilterForCategoryName() {
+        Path<String> descriptionPath = mock(Path.class);
+        Expression<String> lowerDescription = mock(Expression.class);
+        Path<Object> categoryPath = mock(Path.class);
+        Path<String> categoryNamePath = mock(Path.class);
+        Expression<String> lowerCategoryName = mock(Expression.class);
+        Predicate descriptionPredicate = mock(Predicate.class);
+        Predicate categoryPredicate = mock(Predicate.class);
+
+        when(root.<String>get("description")).thenReturn(descriptionPath);
+        when(root.get("category")).thenReturn(categoryPath);
+        when(categoryPath.<String>get("name")).thenReturn(categoryNamePath);
+        when(criteriaBuilder.lower(descriptionPath)).thenReturn(lowerDescription);
+        when(criteriaBuilder.lower(categoryNamePath)).thenReturn(lowerCategoryName);
+        when(criteriaBuilder.like(lowerDescription, "%food%")).thenReturn(descriptionPredicate);
+        when(criteriaBuilder.like(lowerCategoryName, "%food%")).thenReturn(categoryPredicate);
+        when(criteriaBuilder.or(descriptionPredicate, categoryPredicate)).thenReturn(filterPredicate);
+
+        Specification<Transaction> specification = TransactionSpecification.withFilters(
+                7L,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "Food");
+
+        specification.toPredicate(root, query, criteriaBuilder);
+
+        verify(root).get("category");
+        verify(categoryPath).get("name");
+        verify(criteriaBuilder).like(lowerCategoryName, "%food%");
+    }
+
+    @Test
+    void withFiltersIgnoresBlankKeyword() {
+        Specification<Transaction> specification = TransactionSpecification.withFilters(
+                7L,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "  ");
 
         specification.toPredicate(root, query, criteriaBuilder);
 

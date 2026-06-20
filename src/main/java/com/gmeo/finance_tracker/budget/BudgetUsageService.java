@@ -2,6 +2,7 @@ package com.gmeo.finance_tracker.budget;
 
 import com.gmeo.finance_tracker.budget.dto.BudgetUsageItemResponse;
 import com.gmeo.finance_tracker.budget.dto.BudgetUsageResponse;
+import com.gmeo.finance_tracker.budget.enums.BudgetUsageStatus;
 import com.gmeo.finance_tracker.category.enums.CategoryType;
 import com.gmeo.finance_tracker.common.util.DateTimeUtils;
 import com.gmeo.finance_tracker.security.CurrentUserService;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Service;
 public class BudgetUsageService {
 
     private static final BigDecimal ONE_HUNDRED = new BigDecimal("100");
+    private static final BigDecimal WARNING_THRESHOLD = new BigDecimal("80");
 
     private final BudgetRepository budgetRepository;
     private final TransactionRepository transactionRepository;
@@ -87,9 +89,7 @@ public class BudgetUsageService {
     private BudgetUsageItemResponse mapToUsageItem(Budget budget, BigDecimal spentAmount) {
         BigDecimal budgetAmount = budget.getAmount();
         BigDecimal remainingAmount = budgetAmount.subtract(spentAmount);
-        BigDecimal usagePercent = spentAmount
-                .multiply(ONE_HUNDRED)
-                .divide(budgetAmount, 2, RoundingMode.HALF_UP);
+        BigDecimal usagePercent = calculateUsagePercent(spentAmount, budgetAmount);
 
         BudgetUsageItemResponse item = new BudgetUsageItemResponse();
         item.setCategoryId(budget.getCategory().getId());
@@ -99,6 +99,26 @@ public class BudgetUsageService {
         item.setRemainingAmount(remainingAmount);
         item.setUsagePercent(usagePercent);
         item.setOverBudget(spentAmount.compareTo(budgetAmount) > 0);
+        item.setStatus(statusFor(usagePercent));
         return item;
+    }
+
+    private BigDecimal calculateUsagePercent(BigDecimal spentAmount, BigDecimal budgetAmount) {
+        if (budgetAmount.compareTo(BigDecimal.ZERO) == 0) {
+            return BigDecimal.ZERO;
+        }
+        return spentAmount
+                .multiply(ONE_HUNDRED)
+                .divide(budgetAmount, 2, RoundingMode.HALF_UP);
+    }
+
+    private BudgetUsageStatus statusFor(BigDecimal usagePercent) {
+        if (usagePercent.compareTo(ONE_HUNDRED) > 0) {
+            return BudgetUsageStatus.OVER_BUDGET;
+        }
+        if (usagePercent.compareTo(WARNING_THRESHOLD) >= 0) {
+            return BudgetUsageStatus.WARNING;
+        }
+        return BudgetUsageStatus.SAFE;
     }
 }

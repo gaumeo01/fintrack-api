@@ -86,7 +86,8 @@ class BudgetUsageFlowTests {
                 .andExpect(jsonPath("$.items[0].spentAmount").value(240.00))
                 .andExpect(jsonPath("$.items[0].remainingAmount").value(60.00))
                 .andExpect(jsonPath("$.items[0].usagePercent").value(80.00))
-                .andExpect(jsonPath("$.items[0].overBudget").value(false));
+                .andExpect(jsonPath("$.items[0].overBudget").value(false))
+                .andExpect(jsonPath("$.items[0].status").value("WARNING"));
     }
 
     private String createUserAndToken(String email, String fullName) {

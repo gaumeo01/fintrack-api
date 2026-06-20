@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import com.gmeo.finance_tracker.budget.dto.BudgetUsageItemResponse;
 import com.gmeo.finance_tracker.budget.dto.BudgetUsageResponse;
+import com.gmeo.finance_tracker.budget.enums.BudgetUsageStatus;
 import com.gmeo.finance_tracker.category.Category;
 import com.gmeo.finance_tracker.category.enums.CategoryType;
 import com.gmeo.finance_tracker.security.CurrentUserService;
@@ -82,6 +83,7 @@ class BudgetUsageServiceTests {
         assertThat(first.getRemainingAmount()).isEqualByComparingTo("16.665");
         assertThat(first.getUsagePercent()).isEqualByComparingTo("83.34");
         assertThat(first.isOverBudget()).isFalse();
+        assertThat(first.getStatus()).isEqualTo(BudgetUsageStatus.WARNING);
 
         BudgetUsageItemResponse second = response.getItems().get(1);
         assertThat(second.getCategoryId()).isEqualTo(1L);
@@ -90,6 +92,7 @@ class BudgetUsageServiceTests {
         assertThat(second.getRemainingAmount()).isEqualByComparingTo("60.00");
         assertThat(second.getUsagePercent()).isEqualByComparingTo("80.00");
         assertThat(second.isOverBudget()).isFalse();
+        assertThat(second.getStatus()).isEqualTo(BudgetUsageStatus.WARNING);
 
         verify(transactionRepository).sumAmountsByCategory(
                 7L,
@@ -120,6 +123,51 @@ class BudgetUsageServiceTests {
         assertThat(item.getRemainingAmount()).isEqualByComparingTo("-50.00");
         assertThat(item.getUsagePercent()).isEqualByComparingTo("116.67");
         assertThat(item.isOverBudget()).isTrue();
+        assertThat(item.getStatus()).isEqualTo(BudgetUsageStatus.OVER_BUDGET);
+    }
+
+    @Test
+    void marksSafeWhenUsagePercentIsBelowWarningThreshold() {
+        Budget foodBudget = budget(1L, "Food", "300.00");
+        when(budgetRepository.findAllByUserIdAndMonthAndCategoryType(
+                7L,
+                LocalDate.of(2026, 6, 1),
+                CategoryType.EXPENSE))
+                .thenReturn(List.of(foodBudget));
+        when(transactionRepository.sumAmountsByCategory(
+                eq(7L),
+                eq(TransactionType.EXPENSE),
+                eq(LocalDate.of(2026, 6, 1)),
+                eq(LocalDate.of(2026, 7, 1)),
+                eq(List.of(1L))))
+                .thenReturn(List.of(spending(1L, "100.00")));
+
+        BudgetUsageItemResponse item = budgetUsageService.getBudgetUsage("2026-06").getItems().get(0);
+
+        assertThat(item.getUsagePercent()).isEqualByComparingTo("33.33");
+        assertThat(item.getStatus()).isEqualTo(BudgetUsageStatus.SAFE);
+    }
+
+    @Test
+    void handlesZeroBudgetAmountWithoutDivisionError() {
+        Budget foodBudget = budget(1L, "Food", "0.00");
+        when(budgetRepository.findAllByUserIdAndMonthAndCategoryType(
+                7L,
+                LocalDate.of(2026, 6, 1),
+                CategoryType.EXPENSE))
+                .thenReturn(List.of(foodBudget));
+        when(transactionRepository.sumAmountsByCategory(
+                eq(7L),
+                eq(TransactionType.EXPENSE),
+                eq(LocalDate.of(2026, 6, 1)),
+                eq(LocalDate.of(2026, 7, 1)),
+                eq(List.of(1L))))
+                .thenReturn(List.of());
+
+        BudgetUsageItemResponse item = budgetUsageService.getBudgetUsage("2026-06").getItems().get(0);
+
+        assertThat(item.getUsagePercent()).isEqualByComparingTo("0");
+        assertThat(item.getStatus()).isEqualTo(BudgetUsageStatus.SAFE);
     }
 
     private Budget budget(Long categoryId, String categoryName, String amount) {

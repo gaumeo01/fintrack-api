@@ -158,6 +158,37 @@ class UserDataIsolationIntegrationTests {
         assertThat(csv).doesNotContain("User B Lunch");
     }
 
+    @Test
+    void transactionKeywordSearchOnlyReturnsAuthenticatedUsersData() throws Exception {
+        Long userACategoryId = createCategory(userAToken, "User A Food");
+        Long userBCategoryId = createCategory(userBToken, "User B Food");
+        createTransaction(userAToken, userACategoryId, "Shared lunch");
+        createTransaction(userBToken, userBCategoryId, "Shared lunch");
+
+        mockMvc.perform(get("/api/transactions")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(userAToken))
+                        .param("keyword", "shared"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].categoryName").value("User A Food"));
+    }
+
+    @Test
+    void monthlyReportOnlyUsesAuthenticatedUsersData() throws Exception {
+        Long userACategoryId = createCategory(userAToken, "User A Food");
+        Long userBCategoryId = createCategory(userBToken, "User B Food");
+        createTransaction(userAToken, userACategoryId, "User A Lunch");
+        createTransaction(userBToken, userBCategoryId, "User B Lunch");
+
+        mockMvc.perform(get("/api/reports/monthly")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(userAToken))
+                        .param("month", "2026-05"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.transactionCount").value(1))
+                .andExpect(jsonPath("$.totalExpense").value(25.50))
+                .andExpect(jsonPath("$.topExpenseCategories[0].categoryName").value("User A Food"));
+    }
+
     private String createUserAndToken(String email, String fullName) {
         User user = new User();
         user.setEmail(email);

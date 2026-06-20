@@ -50,6 +50,7 @@ public class TransactionController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
             @RequestParam(required = false) BigDecimal minAmount,
             @RequestParam(required = false) BigDecimal maxAmount,
+            @RequestParam(required = false) String keyword,
             @PageableDefault(size = 20, sort = "transactionDate", direction = Sort.Direction.DESC) Pageable pageable) {
         return transactionService.getTransactions(
                 type,
@@ -58,6 +59,7 @@ public class TransactionController {
                 toDate,
                 minAmount,
                 maxAmount,
+                keyword,
                 pageable);
     }
 
@@ -68,14 +70,16 @@ public class TransactionController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
             @RequestParam(required = false) BigDecimal minAmount,
-            @RequestParam(required = false) BigDecimal maxAmount) {
+            @RequestParam(required = false) BigDecimal maxAmount,
+            @RequestParam(required = false) String keyword) {
         String csv = transactionService.exportTransactions(
                 type,
                 categoryId,
                 fromDate,
                 toDate,
                 minAmount,
-                maxAmount);
+                maxAmount,
+                keyword);
 
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType("text/csv"))

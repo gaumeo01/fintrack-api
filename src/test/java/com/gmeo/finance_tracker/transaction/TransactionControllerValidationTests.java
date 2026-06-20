@@ -78,6 +78,7 @@ class TransactionControllerValidationTests {
                 eq(LocalDate.of(2026, 5, 31)),
                 eq(new BigDecimal("10")),
                 eq(new BigDecimal("100")),
+                eq("lunch"),
                 any(Pageable.class)))
                 .thenReturn(response);
 
@@ -88,6 +89,7 @@ class TransactionControllerValidationTests {
                         .param("toDate", "2026-05-31")
                         .param("minAmount", "10")
                         .param("maxAmount", "100")
+                        .param("keyword", "lunch")
                         .param("page", "0")
                         .param("size", "10")
                         .param("sort", "transactionDate,desc"))
@@ -109,6 +111,7 @@ class TransactionControllerValidationTests {
                 eq(LocalDate.of(2026, 5, 31)),
                 eq(new BigDecimal("10")),
                 eq(new BigDecimal("100")),
+                eq("lunch"),
                 any(Pageable.class));
     }
 
@@ -116,6 +119,7 @@ class TransactionControllerValidationTests {
     void getTransactionsAcceptsSortingByTransactionDateDescending() throws Exception {
         when(transactionService.getTransactions(
                 eq(TransactionType.EXPENSE),
+                eq(null),
                 eq(null),
                 eq(null),
                 eq(null),
@@ -139,6 +143,7 @@ class TransactionControllerValidationTests {
                 eq(null),
                 eq(null),
                 eq(null),
+                eq(null),
                 pageableCaptor.capture());
 
         Sort.Order order = pageableCaptor.getValue().getSort().getOrderFor("transactionDate");
@@ -157,7 +162,8 @@ class TransactionControllerValidationTests {
                 eq(LocalDate.of(2026, 5, 1)),
                 eq(LocalDate.of(2026, 5, 31)),
                 eq(new BigDecimal("10")),
-                eq(new BigDecimal("100"))))
+                eq(new BigDecimal("100")),
+                eq("lunch")))
                 .thenReturn(csv);
 
         mockMvc.perform(get("/api/transactions/export")
@@ -166,7 +172,8 @@ class TransactionControllerValidationTests {
                         .param("fromDate", "2026-05-01")
                         .param("toDate", "2026-05-31")
                         .param("minAmount", "10")
-                        .param("maxAmount", "100"))
+                        .param("maxAmount", "100")
+                        .param("keyword", "lunch"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.parseMediaType("text/csv")))
                 .andExpect(header().string(
@@ -180,13 +187,15 @@ class TransactionControllerValidationTests {
                 eq(LocalDate.of(2026, 5, 1)),
                 eq(LocalDate.of(2026, 5, 31)),
                 eq(new BigDecimal("10")),
-                eq(new BigDecimal("100")));
+                eq(new BigDecimal("100")),
+                eq("lunch"));
     }
 
     @Test
     void exportTransactionsReturnsHeaderOnlyCsv() throws Exception {
         String csv = "id,type,amount,categoryId,categoryName,description,transactionDate,createdAt,updatedAt";
         when(transactionService.exportTransactions(
+                eq(null),
                 eq(null),
                 eq(null),
                 eq(null),
@@ -201,6 +210,7 @@ class TransactionControllerValidationTests {
                 .andExpect(content().string(csv));
 
         verify(transactionService).exportTransactions(
+                eq(null),
                 eq(null),
                 eq(null),
                 eq(null),
