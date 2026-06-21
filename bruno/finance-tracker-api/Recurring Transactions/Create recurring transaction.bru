@@ -1,0 +1,27 @@
+meta {
+  name: Create recurring transaction
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/recurring-transactions
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+body:json {
+  {
+    "type": "EXPENSE",
+    "amount": 25.50,
+    "categoryId": {{categoryId}},
+    "description": "Recurring lunch",
+    "frequency": "MONTHLY",
+    "startDate": "{{fromDate}}",
+    "active": true
+  }
+}

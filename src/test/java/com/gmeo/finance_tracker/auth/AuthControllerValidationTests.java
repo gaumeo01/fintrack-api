@@ -3,10 +3,12 @@ package com.gmeo.finance_tracker.auth;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.gmeo.finance_tracker.auth.dto.ChangePasswordRequest;
 import com.gmeo.finance_tracker.auth.dto.LoginRequest;
 import com.gmeo.finance_tracker.auth.dto.LoginResponse;
 import com.gmeo.finance_tracker.auth.dto.RegisterRequest;
@@ -22,6 +24,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -284,5 +287,64 @@ class AuthControllerValidationTests {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.validationErrors.password").exists());
+    }
+
+    @Test
+    @WithMockUser
+    void changePasswordReturnsUserResponse() throws Exception {
+        UserResponse response = new UserResponse();
+        response.setId(1L);
+        response.setEmail("test@example.com");
+        response.setFullName("Test User");
+        response.setRole(UserRole.USER);
+
+        when(authService.changePassword(any(ChangePasswordRequest.class))).thenReturn(response);
+
+        mockMvc.perform(put("/api/auth/change-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "currentPassword": "password123",
+                                  "newPassword": "newpass123"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("test@example.com"))
+                .andExpect(jsonPath("$.passwordHash").doesNotExist());
+    }
+
+    @Test
+    @WithMockUser
+    void changePasswordReturnsBadRequestForShortNewPassword() throws Exception {
+        mockMvc.perform(put("/api/auth/change-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "currentPassword": "password123",
+                                  "newPassword": "short"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.validationErrors.newPassword").exists());
+
+        verifyNoInteractions(authService);
+    }
+
+    @Test
+    @WithMockUser
+    void changePasswordReturnsUnauthorizedForWrongCurrentPassword() throws Exception {
+        when(authService.changePassword(any(ChangePasswordRequest.class)))
+                .thenThrow(new InvalidCredentialsException("Current password is incorrect"));
+
+        mockMvc.perform(put("/api/auth/change-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "currentPassword": "wrongpass123",
+                                  "newPassword": "newpass123"
+                                }
+                                """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Current password is incorrect"));
     }
 }

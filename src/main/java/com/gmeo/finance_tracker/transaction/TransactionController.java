@@ -1,6 +1,7 @@
 package com.gmeo.finance_tracker.transaction;
 
 import com.gmeo.finance_tracker.common.dto.PageResponse;
+import com.gmeo.finance_tracker.transaction.dto.TransactionImportResponse;
 import com.gmeo.finance_tracker.transaction.dto.TransactionRequest;
 import com.gmeo.finance_tracker.transaction.dto.TransactionResponse;
 import com.gmeo.finance_tracker.transaction.enums.TransactionType;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/transactions")
@@ -85,6 +87,11 @@ public class TransactionController {
                 .contentType(MediaType.parseMediaType("text/csv"))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"transactions-export.csv\"")
                 .body(csv);
+    }
+
+    @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public TransactionImportResponse importTransactions(@RequestParam("file") MultipartFile file) {
+        return transactionService.importTransactions(file);
     }
 
     @GetMapping("/{id}")

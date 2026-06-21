@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.gmeo.finance_tracker.auth.JwtService;
 import com.gmeo.finance_tracker.budget.BudgetRepository;
 import com.gmeo.finance_tracker.category.CategoryRepository;
+import com.gmeo.finance_tracker.recurring.RecurringTransactionRepository;
 import com.gmeo.finance_tracker.transaction.TransactionRepository;
 import com.gmeo.finance_tracker.user.User;
 import com.gmeo.finance_tracker.user.UserRepository;
@@ -47,6 +48,9 @@ class UserDataIsolationIntegrationTests {
     private TransactionRepository transactionRepository;
 
     @Autowired
+    private RecurringTransactionRepository recurringTransactionRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Autowired
@@ -58,6 +62,7 @@ class UserDataIsolationIntegrationTests {
     @BeforeEach
     void setUp() {
         transactionRepository.deleteAll();
+        recurringTransactionRepository.deleteAll();
         budgetRepository.deleteAll();
         categoryRepository.deleteAll();
         userRepository.deleteAll();
