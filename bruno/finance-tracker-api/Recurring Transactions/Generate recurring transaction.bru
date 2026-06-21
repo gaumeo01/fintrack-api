@@ -1,0 +1,15 @@
+meta {
+  name: Generate recurring transaction
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/recurring-transactions/{{recurringTransactionId}}/generate
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}

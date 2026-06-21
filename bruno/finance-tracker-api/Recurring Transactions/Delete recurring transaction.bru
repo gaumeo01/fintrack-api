@@ -1,0 +1,15 @@
+meta {
+  name: Delete recurring transaction
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{baseUrl}}/api/recurring-transactions/{{recurringTransactionId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}

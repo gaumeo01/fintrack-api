@@ -3,26 +3,40 @@ package com.gmeo.finance_tracker.transaction;
 import com.gmeo.finance_tracker.category.Category;
 import com.gmeo.finance_tracker.category.CategoryRepository;
 import com.gmeo.finance_tracker.common.dto.PageResponse;
+import com.gmeo.finance_tracker.common.exception.BadRequestException;
 import com.gmeo.finance_tracker.common.exception.ResourceNotFoundException;
 import com.gmeo.finance_tracker.security.CurrentUserService;
+import com.gmeo.finance_tracker.transaction.dto.TransactionImportError;
+import com.gmeo.finance_tracker.transaction.dto.TransactionImportResponse;
 import com.gmeo.finance_tracker.transaction.dto.TransactionRequest;
 import com.gmeo.finance_tracker.transaction.dto.TransactionResponse;
 import com.gmeo.finance_tracker.transaction.enums.TransactionType;
 import com.gmeo.finance_tracker.user.User;
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class TransactionService {
 
     private static final String CSV_HEADER =
             "id,type,amount,categoryId,categoryName,description,transactionDate,createdAt,updatedAt";
+    private static final List<String> IMPORT_HEADERS = List.of(
+            "type",
+            "amount",
+            "categoryId",
+            "description",
+            "transactionDate");
 
     private final TransactionRepository transactionRepository;
     private final CategoryRepository categoryRepository;
@@ -137,6 +151,41 @@ public class TransactionService {
         return csv.toString();
     }
 
+    public TransactionImportResponse importTransactions(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BadRequestException("CSV file must not be empty");
+        }
+
+        List<List<String>> rows = parseCsv(file);
+        if (rows.isEmpty() || isBlankRow(rows.get(0))) {
+            throw new BadRequestException("CSV file must not be empty");
+        }
+
+        validateImportHeaders(rows.get(0));
+
+        User currentUser = currentUserService.getCurrentUser();
+        List<TransactionImportError> errors = new ArrayList<>();
+        int successfulRows = 0;
+
+        for (int index = 1; index < rows.size(); index++) {
+            List<String> row = rows.get(index);
+            if (isBlankRow(row)) {
+                continue;
+            }
+
+            try {
+                Transaction transaction = mapImportRow(row, currentUser);
+                transactionRepository.save(transaction);
+                successfulRows++;
+            } catch (IllegalArgumentException | DateTimeParseException | ResourceNotFoundException | BadRequestException exception) {
+                errors.add(new TransactionImportError(index + 1, exception.getMessage()));
+            }
+        }
+
+        int totalRows = successfulRows + errors.size();
+        return new TransactionImportResponse(totalRows, successfulRows, errors.size(), errors);
+    }
+
     public TransactionResponse getTransactionById(Long id) {
         Transaction transaction = findOwnedTransaction(id);
 
@@ -167,6 +216,12 @@ public class TransactionService {
     private Category findOwnedCategory(Long categoryId, Long userId) {
         return categoryRepository.findByIdAndUserId(categoryId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + categoryId));
+    }
+
+    private void validateCategoryType(Category category, TransactionType type) {
+        if (!category.getType().name().equals(type.name())) {
+            throw new BadRequestException("Category type must match transaction type");
+        }
     }
 
     private Transaction findOwnedTransaction(Long id) {
@@ -204,5 +259,103 @@ public class TransactionService {
         }
 
         return text;
+    }
+
+    private List<List<String>> parseCsv(MultipartFile file) {
+        String content;
+        try {
+            content = new String(file.getBytes(), StandardCharsets.UTF_8);
+        } catch (IOException exception) {
+            throw new BadRequestException("Could not read CSV file");
+        }
+
+        if (content.isBlank()) {
+            return List.of();
+        }
+
+        List<List<String>> rows = new ArrayList<>();
+        List<String> row = new ArrayList<>();
+        StringBuilder value = new StringBuilder();
+        boolean inQuotes = false;
+
+        for (int index = 0; index < content.length(); index++) {
+            char character = content.charAt(index);
+            if (inQuotes) {
+                if (character == '"') {
+                    if (index + 1 < content.length() && content.charAt(index + 1) == '"') {
+                        value.append('"');
+                        index++;
+                    } else {
+                        inQuotes = false;
+                    }
+                } else {
+                    value.append(character);
+                }
+                continue;
+            }
+
+            if (character == '"') {
+                inQuotes = true;
+            } else if (character == ',') {
+                row.add(value.toString());
+                value.setLength(0);
+            } else if (character == '\n') {
+                row.add(value.toString());
+                rows.add(row);
+                row = new ArrayList<>();
+                value.setLength(0);
+            } else if (character != '\r') {
+                value.append(character);
+            }
+        }
+
+        if (inQuotes) {
+            throw new BadRequestException("CSV contains an unclosed quoted value");
+        }
+
+        row.add(value.toString());
+        if (!isBlankRow(row)) {
+            rows.add(row);
+        }
+
+        return rows;
+    }
+
+    private void validateImportHeaders(List<String> headers) {
+        List<String> normalizedHeaders = headers.stream()
+                .map(String::trim)
+                .toList();
+        if (!normalizedHeaders.equals(IMPORT_HEADERS)) {
+            throw new BadRequestException("CSV header must be: " + String.join(",", IMPORT_HEADERS));
+        }
+    }
+
+    private boolean isBlankRow(List<String> row) {
+        return row.stream().allMatch(value -> value == null || value.isBlank());
+    }
+
+    private Transaction mapImportRow(List<String> row, User currentUser) {
+        if (row.size() != IMPORT_HEADERS.size()) {
+            throw new BadRequestException("Row must contain " + IMPORT_HEADERS.size() + " columns");
+        }
+
+        TransactionType type = TransactionType.valueOf(row.get(0).trim());
+        BigDecimal amount = new BigDecimal(row.get(1).trim());
+        if (amount.compareTo(new BigDecimal("0.01")) < 0) {
+            throw new BadRequestException("Amount must be greater than or equal to 0.01");
+        }
+
+        Long categoryId = Long.valueOf(row.get(2).trim());
+        Category category = findOwnedCategory(categoryId, currentUser.getId());
+        validateCategoryType(category, type);
+
+        Transaction transaction = new Transaction();
+        transaction.setType(type);
+        transaction.setAmount(amount);
+        transaction.setCategory(category);
+        transaction.setUser(currentUser);
+        transaction.setDescription(row.get(3));
+        transaction.setTransactionDate(LocalDate.parse(row.get(4).trim()));
+        return transaction;
     }
 }

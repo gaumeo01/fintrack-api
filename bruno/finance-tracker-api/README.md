@@ -18,12 +18,17 @@ This Bruno collection contains example requests for manually testing the Finance
 - Protected requests already include `Authorization: Bearer {{accessToken}}`.
 - `keyword` is used by **Transactions / Search transactions by keyword**.
 - `month` is used by budget usage and **Reports / Get monthly report**.
+- `recurringTransactionId` is used by recurring transaction detail, update, delete, and generate requests.
+- `currentPassword` and `newPassword` are placeholders for **Account / Change password**.
 
 ## New Requests
 
 - **Transactions / Search transactions by keyword** searches transaction descriptions and category names.
 - **Transactions / Export transactions CSV** downloads the authenticated user's transactions as CSV.
+- **Import / Import transactions CSV** uploads transactions from a CSV file.
 - **Reports / Get monthly report** returns monthly totals, top categories, and daily trend.
+- **Recurring Transactions** contains CRUD requests and manual generation.
+- **Account / Change password** updates the authenticated user's password.
 
 ## Suggested Manual Test Order
 
@@ -37,8 +42,12 @@ This Bruno collection contains example requests for manually testing the Finance
 8. Update `transactionId` with a transaction id you want to inspect or modify.
 9. Run **Transactions / Search transactions by keyword**.
 10. Run **Transactions / Export transactions CSV**.
-11. Run dashboard requests.
-12. Run **Reports / Get monthly report**.
-13. Create a budget for the expense category.
-14. Update `budgetId` with the created budget id.
-15. Run budget list, detail, update, usage, and delete requests.
+11. Run **Import / Import transactions CSV** with a local CSV file if needed.
+12. Create a recurring transaction and update `recurringTransactionId`.
+13. Run recurring list, detail, update, generate, and delete requests.
+14. Run dashboard requests.
+15. Run **Reports / Get monthly report**.
+16. Create a budget for the expense category.
+17. Update `budgetId` with the created budget id.
+18. Run budget list, detail, update, usage, and delete requests.
+19. Run **Account / Change password** only after setting placeholder password variables intentionally.

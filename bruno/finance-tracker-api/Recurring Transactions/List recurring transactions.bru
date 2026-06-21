@@ -1,0 +1,15 @@
+meta {
+  name: List recurring transactions
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/recurring-transactions
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
