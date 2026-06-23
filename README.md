@@ -105,6 +105,30 @@ docker compose down
 sh mvnw test
 ```
 
+## Frontend
+
+The React frontend lives in `frontend/`.
+
+```bash
+cd frontend
+npm install
+cp .env.example .env
+npm run dev
+```
+
+Set `VITE_API_BASE_URL` in `frontend/.env` to the backend origin, for example:
+
+```text
+VITE_API_BASE_URL=http://localhost:8080
+```
+
+Create a production build with:
+
+```bash
+cd frontend
+npm run build
+```
+
 ## Authentication Flow
 
 1. Register a user with `POST /api/auth/register`.
