@@ -1,0 +1,4 @@
+node_modules/
+dist/
+*.tsbuildinfo
+build-error.log
