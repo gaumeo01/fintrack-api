@@ -11,6 +11,7 @@ import com.gmeo.finance_tracker.category.Category;
 import com.gmeo.finance_tracker.category.CategoryRepository;
 import com.gmeo.finance_tracker.category.enums.CategoryType;
 import com.gmeo.finance_tracker.common.dto.PageResponse;
+import com.gmeo.finance_tracker.common.exception.BadRequestException;
 import com.gmeo.finance_tracker.common.exception.ResourceNotFoundException;
 import com.gmeo.finance_tracker.security.CurrentUserService;
 import com.gmeo.finance_tracker.transaction.dto.TransactionRequest;
@@ -89,6 +90,22 @@ class TransactionServiceTests {
         assertThatThrownBy(() -> transactionService.createTransaction(createRequest()))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessage("Category not found with id: 1");
+
+        verify(transactionRepository, never()).save(any(Transaction.class));
+    }
+
+    @Test
+    void createTransactionRejectsMismatchedCategoryType() {
+        Category category = new Category();
+        category.setId(1L);
+        category.setName("Salary");
+        category.setType(CategoryType.INCOME);
+
+        when(categoryRepository.findByIdAndUserId(1L, 7L)).thenReturn(Optional.of(category));
+
+        assertThatThrownBy(() -> transactionService.createTransaction(createRequest()))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Transaction type must match category type");
 
         verify(transactionRepository, never()).save(any(Transaction.class));
     }
@@ -213,6 +230,62 @@ class TransactionServiceTests {
                 .hasMessage("Transaction not found with id: 10");
 
         verify(transactionRepository, never()).save(any(Transaction.class));
+    }
+
+    @Test
+    void updateTransactionRejectsMismatchedCategoryType() {
+        Transaction existingTransaction = transaction(10L);
+        Category incomeCategory = new Category();
+        incomeCategory.setId(2L);
+        incomeCategory.setName("Salary");
+        incomeCategory.setType(CategoryType.INCOME);
+
+        TransactionRequest request = createRequest();
+        request.setCategoryId(2L);
+
+        when(transactionRepository.findByIdAndUserId(10L, 7L)).thenReturn(Optional.of(existingTransaction));
+        when(categoryRepository.findByIdAndUserId(2L, 7L)).thenReturn(Optional.of(incomeCategory));
+
+        assertThatThrownBy(() -> transactionService.updateTransaction(10L, request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Transaction type must match category type");
+
+        verify(transactionRepository, never()).save(any(Transaction.class));
+    }
+
+    @Test
+    void getTransactionsRejectsFromDateAfterToDate() {
+        Pageable pageable = PageRequest.of(0, 10);
+
+        assertThatThrownBy(() -> transactionService.getTransactions(
+                null,
+                null,
+                LocalDate.of(2026, 5, 31),
+                LocalDate.of(2026, 5, 1),
+                null,
+                null,
+                null,
+                pageable))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("fromDate must be before or equal to toDate");
+
+        verify(transactionRepository, never()).findAll(Mockito.<Specification<Transaction>>any(), any(Pageable.class));
+    }
+
+    @Test
+    void exportTransactionsRejectsMinAmountGreaterThanMaxAmount() {
+        assertThatThrownBy(() -> transactionService.exportTransactions(
+                null,
+                null,
+                null,
+                null,
+                new BigDecimal("100"),
+                new BigDecimal("10"),
+                null))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("minAmount must be less than or equal to maxAmount");
+
+        verify(transactionRepository, never()).findAll(Mockito.<Specification<Transaction>>any(), any(Sort.class));
     }
 
     @Test

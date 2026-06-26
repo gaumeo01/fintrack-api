@@ -138,7 +138,7 @@ class TransactionImportFlowTests {
                 .andExpect(jsonPath("$.successfulRows").value(0))
                 .andExpect(jsonPath("$.failedRows").value(2))
                 .andExpect(jsonPath("$.errors[0].message").value("Category not found with id: " + userBCategoryId))
-                .andExpect(jsonPath("$.errors[1].message").value("Category type must match transaction type"));
+                .andExpect(jsonPath("$.errors[1].message").value("Transaction type must match category type"));
     }
 
     private String createUserAndToken(String email, String fullName) {
