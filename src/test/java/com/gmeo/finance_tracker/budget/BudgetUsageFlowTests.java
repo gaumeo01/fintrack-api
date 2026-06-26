@@ -70,12 +70,13 @@ class BudgetUsageFlowTests {
     @Test
     void returnsBudgetUsageForAuthenticatedUserFromExpenseTransactionsInSameCategoryAndMonth() throws Exception {
         Long userAFoodCategoryId = createCategory(userAToken, "Food", "EXPENSE");
+        Long userASalaryCategoryId = createCategory(userAToken, "Salary", "INCOME");
         Long userBFoodCategoryId = createCategory(userBToken, "Food", "EXPENSE");
         createBudget(userAToken, userAFoodCategoryId, "300.00", "2026-06");
         createBudget(userBToken, userBFoodCategoryId, "100.00", "2026-06");
 
         createTransaction(userAToken, userAFoodCategoryId, "EXPENSE", "240.00", "2026-06-15");
-        createTransaction(userAToken, userAFoodCategoryId, "INCOME", "50.00", "2026-06-16");
+        createTransaction(userAToken, userASalaryCategoryId, "INCOME", "50.00", "2026-06-16");
         createTransaction(userAToken, userAFoodCategoryId, "EXPENSE", "60.00", "2026-07-01");
         createTransaction(userBToken, userBFoodCategoryId, "EXPENSE", "70.00", "2026-06-15");
 

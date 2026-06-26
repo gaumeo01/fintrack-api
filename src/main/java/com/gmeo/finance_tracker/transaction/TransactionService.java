@@ -54,6 +54,7 @@ public class TransactionService {
     public TransactionResponse createTransaction(TransactionRequest request) {
         User currentUser = currentUserService.getCurrentUser();
         Category category = findOwnedCategory(request.getCategoryId(), currentUser.getId());
+        validateCategoryType(category, request.getType());
 
         Transaction transaction = new Transaction();
         transaction.setType(request.getType());
@@ -84,6 +85,8 @@ public class TransactionService {
             BigDecimal maxAmount,
             String keyword,
             Pageable pageable) {
+        validateFilterRanges(fromDate, toDate, minAmount, maxAmount);
+
         User currentUser = currentUserService.getCurrentUser();
         Specification<Transaction> specification = TransactionSpecification.withFilters(
                 currentUser.getId(),
@@ -109,6 +112,8 @@ public class TransactionService {
             BigDecimal minAmount,
             BigDecimal maxAmount,
             String keyword) {
+        validateFilterRanges(fromDate, toDate, minAmount, maxAmount);
+
         User currentUser = currentUserService.getCurrentUser();
         Specification<Transaction> specification = TransactionSpecification.withFilters(
                 currentUser.getId(),
@@ -196,6 +201,7 @@ public class TransactionService {
         User currentUser = currentUserService.getCurrentUser();
         Transaction transaction = findOwnedTransaction(id, currentUser.getId());
         Category category = findOwnedCategory(request.getCategoryId(), currentUser.getId());
+        validateCategoryType(category, request.getType());
 
         transaction.setType(request.getType());
         transaction.setAmount(request.getAmount());
@@ -220,7 +226,20 @@ public class TransactionService {
 
     private void validateCategoryType(Category category, TransactionType type) {
         if (!category.getType().name().equals(type.name())) {
-            throw new BadRequestException("Category type must match transaction type");
+            throw new BadRequestException("Transaction type must match category type");
+        }
+    }
+
+    private void validateFilterRanges(
+            LocalDate fromDate,
+            LocalDate toDate,
+            BigDecimal minAmount,
+            BigDecimal maxAmount) {
+        if (fromDate != null && toDate != null && fromDate.isAfter(toDate)) {
+            throw new BadRequestException("fromDate must be before or equal to toDate");
+        }
+        if (minAmount != null && maxAmount != null && minAmount.compareTo(maxAmount) > 0) {
+            throw new BadRequestException("minAmount must be less than or equal to maxAmount");
         }
     }
 
