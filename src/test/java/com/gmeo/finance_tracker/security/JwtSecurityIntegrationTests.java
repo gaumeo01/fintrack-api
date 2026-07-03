@@ -96,6 +96,23 @@ class JwtSecurityIntegrationTests {
     }
 
     @Test
+    void categoryBreakdownWithoutTokenReturnsUnauthorized() throws Exception {
+        mockMvc.perform(get("/api/dashboard/category-breakdown")
+                        .param("fromDate", "2026-06-01")
+                        .param("toDate", "2026-06-30")
+                        .param("type", "EXPENSE"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void dashboardTrendWithoutTokenReturnsUnauthorized() throws Exception {
+        mockMvc.perform(get("/api/dashboard/trend")
+                        .param("fromDate", "2026-01-01")
+                        .param("toDate", "2026-12-31"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void protectedEndpointWithValidBearerTokenIsAllowed() throws Exception {
         String token = jwtService.generateAccessToken("test@example.com");
 
