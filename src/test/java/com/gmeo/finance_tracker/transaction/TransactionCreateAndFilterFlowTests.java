@@ -144,6 +144,27 @@ class TransactionCreateAndFilterFlowTests {
     }
 
     @Test
+    void createTransactionAcceptsDescriptionAtMaximumLength() throws Exception {
+        Long categoryId = createExpenseCategory();
+        String description = "a".repeat(255);
+
+        mockMvc.perform(post("/api/transactions")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "type": "EXPENSE",
+                                  "amount": 25.50,
+                                  "categoryId": %d,
+                                  "description": "%s",
+                                  "transactionDate": "2026-05-20"
+                                }
+                                """.formatted(categoryId, description)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.description").value(description));
+    }
+
+    @Test
     void createTransactionReturnsBadRequestForMalformedRequest() throws Exception {
         mockMvc.perform(post("/api/transactions")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
