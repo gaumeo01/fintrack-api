@@ -1,0 +1,25 @@
+meta {
+  name: Update budget
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/api/budgets/{{budgetId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "categoryId": {{categoryId}},
+    "amount": 3500000.00,
+    "startDate": "{{fromDate}}",
+    "endDate": "{{toDate}}"
+  }
+}

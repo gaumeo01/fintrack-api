@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.gmeo.finance_tracker.auth.JwtService;
 import com.gmeo.finance_tracker.budget.BudgetRepository;
 import com.gmeo.finance_tracker.category.CategoryRepository;
+import com.gmeo.finance_tracker.recurring.RecurringTransactionRepository;
 import com.jayway.jsonpath.JsonPath;
 import com.gmeo.finance_tracker.user.User;
 import com.gmeo.finance_tracker.user.UserRepository;
@@ -37,6 +38,9 @@ class TransactionCreateAndFilterFlowTests {
     private TransactionRepository transactionRepository;
 
     @Autowired
+    private RecurringTransactionRepository recurringTransactionRepository;
+
+    @Autowired
     private BudgetRepository budgetRepository;
 
     @Autowired
@@ -53,6 +57,7 @@ class TransactionCreateAndFilterFlowTests {
     @BeforeEach
     void setUpAuthentication() {
         transactionRepository.deleteAll();
+        recurringTransactionRepository.deleteAll();
         budgetRepository.deleteAll();
         categoryRepository.deleteAll();
         userRepository.deleteAll();

@@ -1,11 +1,13 @@
 package com.gmeo.finance_tracker.auth;
 
+import com.gmeo.finance_tracker.auth.dto.ChangePasswordRequest;
 import com.gmeo.finance_tracker.auth.dto.LoginRequest;
 import com.gmeo.finance_tracker.auth.dto.LoginResponse;
 import com.gmeo.finance_tracker.auth.dto.RegisterRequest;
 import com.gmeo.finance_tracker.auth.dto.UserResponse;
 import com.gmeo.finance_tracker.common.exception.DuplicateResourceException;
 import com.gmeo.finance_tracker.common.exception.InvalidCredentialsException;
+import com.gmeo.finance_tracker.security.CurrentUserService;
 import com.gmeo.finance_tracker.user.User;
 import com.gmeo.finance_tracker.user.UserRepository;
 import com.gmeo.finance_tracker.user.enums.UserRole;
@@ -18,11 +20,17 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final CurrentUserService currentUserService;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
+    public AuthService(
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder,
+            JwtService jwtService,
+            CurrentUserService currentUserService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.currentUserService = currentUserService;
     }
 
     public UserResponse register(RegisterRequest request) {
@@ -57,6 +65,16 @@ public class AuthService {
         response.setAccessToken(jwtService.generateAccessToken(user.getEmail()));
         response.setTokenType("Bearer");
         return response;
+    }
+
+    public UserResponse changePassword(ChangePasswordRequest request) {
+        User currentUser = currentUserService.getCurrentUser();
+        if (!passwordEncoder.matches(request.getCurrentPassword(), currentUser.getPasswordHash())) {
+            throw new InvalidCredentialsException("Current password is incorrect");
+        }
+
+        currentUser.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        return mapToResponse(userRepository.save(currentUser));
     }
 
     private UserResponse mapToResponse(User user) {

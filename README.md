@@ -1,160 +1,385 @@
-# Personal Finance Tracker Backend
+# Finance Tracker API
 
-Spring Boot backend for a personal finance tracker. The API supports user registration, login, JWT authentication, user-scoped categories, user-scoped transactions with filtering, pagination, and sorting, dashboard analytics, and budget tracking.
+Finance Tracker API is a Spring Boot REST API for tracking personal income, expenses, categories, dashboard analytics, and budgets. It uses JWT authentication and keeps each user's data isolated from every other user.
 
 ## Tech Stack
 
-- Java 21
-- Spring Boot 4
-- Spring Web MVC
-- Spring Security
-- Spring Data JPA
-- Jakarta Validation
-- PostgreSQL for local development
-- H2 for tests
-- Maven Wrapper
-- Docker Compose
+| Area | Technology |
+| --- | --- |
+| Language | Java |
+| Framework | Spring Boot |
+| Web API | Spring Web |
+| Persistence | Spring Data JPA |
+| Security | Spring Security, JWT |
+| Database | PostgreSQL |
+| Local services | Docker Compose |
+| Build tool | Maven |
+| Testing | JUnit, Spring Boot Test, H2 for tests |
+
+## Main Features
+
+- User registration
+- Login with JWT
+- Authenticated category CRUD
+- Authenticated transaction CRUD
+- Transaction filtering and pagination
+- Dashboard summary
+- Dashboard category breakdown
+- Dashboard trend
+- Budget CRUD
+- Budget usage/progress API
+- User-owned data isolation
+- Cross-user access protection
 
 ## Project Structure
 
-- `src/main/java/com/gmeo/finance_tracker/auth`: register, login, JWT services, auth DTOs
-- `src/main/java/com/gmeo/finance_tracker/security`: JWT filter and current-user helpers
-- `src/main/java/com/gmeo/finance_tracker/category`: category CRUD
-- `src/main/java/com/gmeo/finance_tracker/transaction`: transaction CRUD, filters, pagination
-- `src/main/java/com/gmeo/finance_tracker/dashboard`: dashboard summary and analytics
-- `src/main/java/com/gmeo/finance_tracker/budget`: budget CRUD and usage tracking
-- `src/main/java/com/gmeo/finance_tracker/common`: shared responses and exception handling
-- `src/main/resources/application.properties`: local PostgreSQL and JWT config
-- `src/test`: unit and integration tests using H2
-- `docs`: project roadmap and notes
-- `docker-compose.yml`: local PostgreSQL service
-
-## Run PostgreSQL
-
-```powershell
-docker compose up -d
+```text
+src/main/java/com/gmeo/finance_tracker
+├── auth/          # Registration, login, JWT issuing
+├── budget/        # Budget CRUD and budget usage/progress
+├── category/      # User-owned income/expense categories
+├── common/        # Shared DTOs, responses, exceptions, utilities
+├── config/        # Spring Security configuration
+├── dashboard/     # Dashboard analytics endpoints
+├── security/      # JWT filter and current-user lookup
+├── transaction/   # Transaction CRUD, filtering, specifications
+└── user/          # User entity, repository, and user service
 ```
 
-The included Compose file starts PostgreSQL on host port `5433` with:
+Tests live under `src/test/java/com/gmeo/finance_tracker`.
 
-- Database: `fintrack_db`
-- User: `fintrack_user`
-- Password: `fintrack_password`
+## Requirements
+
+- Java 21
+- Docker and Docker Compose
+- Maven wrapper from this repository (`mvnw`)
 
 ## Environment Variables
 
-The backend reads JWT settings from environment variables:
+| Variable | Required | Default | Description |
+| --- | --- | --- | --- |
+| `APP_JWT_SECRET` | Yes, outside tests | None | Secret key used to sign JWT access tokens. Use a long random value. |
+| `APP_JWT_ACCESS_TOKEN_EXPIRATION_MS` | No | `3600000` | Access token lifetime in milliseconds. |
 
-- `APP_JWT_SECRET`: required secret used to sign JWTs. Use a long, non-public value.
-- `APP_JWT_ACCESS_TOKEN_EXPIRATION_MS`: optional access token lifetime in milliseconds. Defaults to `3600000`.
+The local PostgreSQL settings are currently configured in `src/main/resources/application.properties`:
 
-PowerShell example:
+| Property | Value |
+| --- | --- |
+| Database URL | `jdbc:postgresql://localhost:5433/fintrack_db` |
+| Username | `fintrack_user` |
+| Password | `fintrack_password` |
 
-```powershell
-$env:APP_JWT_SECRET="replace-with-a-long-secret-at-least-32-characters"
-$env:APP_JWT_ACCESS_TOKEN_EXPIRATION_MS="3600000"
+Tests use `src/test/resources/application.properties` and run against an in-memory H2 database, so `APP_JWT_SECRET` is not required for tests.
+
+## Run With Docker Compose
+
+The included `docker-compose.yml` starts PostgreSQL only. Run the database first, then start the Spring Boot app from your machine.
+
+```bash
+docker compose up -d
 ```
 
-## Run Backend
+Set the JWT secret:
 
-```powershell
-.\mvnw.cmd spring-boot:run
+```bash
+export APP_JWT_SECRET="replace-with-a-long-random-secret-at-least-32-characters"
 ```
 
-On macOS/Linux:
+Start the API:
 
-```sh
+```bash
 sh mvnw spring-boot:run
+```
+
+The API will use PostgreSQL on `localhost:5433`.
+
+To stop the database:
+
+```bash
+docker compose down
 ```
 
 ## Run Tests
 
-Windows:
-
-```powershell
-.\mvnw.cmd test
-```
-
-macOS/Linux:
-
-```sh
+```bash
 sh mvnw test
 ```
 
-Tests use H2 with PostgreSQL compatibility mode. The most recent verified run passed `104` tests.
+## Frontend
 
-## Auth Flow
+The React frontend lives in `frontend/`.
 
-1. Register with `POST /api/auth/register`.
-2. Login with `POST /api/auth/login`.
-3. Store the returned `accessToken`.
-4. Call protected endpoints with:
+```bash
+cd frontend
+npm install
+cp .env.example .env
+npm run dev
+```
+
+Set `VITE_API_BASE_URL` in `frontend/.env` to the backend origin, for example:
+
+```text
+VITE_API_BASE_URL=http://localhost:8080
+```
+
+Create a production build with:
+
+```bash
+cd frontend
+npm run build
+```
+
+## Authentication Flow
+
+1. Register a user with `POST /api/auth/register`.
+2. Log in with `POST /api/auth/login`.
+3. Copy the `accessToken` from the login response.
+4. Call protected endpoints with this header:
 
 ```http
 Authorization: Bearer <accessToken>
 ```
 
-The login response includes `accessToken`, `tokenType` set to `Bearer`, and a user DTO without password data.
+Only registration and login are public. Endpoints under `/api/**` are protected unless explicitly public.
 
-## Endpoint Summary
+## API Endpoint Summary
 
-| Endpoint | Status | Notes |
+### Auth
+
+| Method | Endpoint | Auth | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/auth/register` | Public | Create a new user account. |
+| `POST` | `/api/auth/login` | Public | Log in and receive a JWT access token. |
+
+### Categories
+
+| Method | Endpoint | Auth | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/categories` | JWT | Create a category. |
+| `GET` | `/api/categories` | JWT | List current user's categories. |
+| `GET` | `/api/categories/{id}` | JWT | Get one owned category. |
+| `PUT` | `/api/categories/{id}` | JWT | Update one owned category. |
+| `DELETE` | `/api/categories/{id}` | JWT | Delete one owned category. |
+
+Category types are `INCOME` and `EXPENSE`.
+
+### Transactions
+
+| Method | Endpoint | Auth | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/transactions` | JWT | Create a transaction. |
+| `GET` | `/api/transactions` | JWT | List transactions with filters and pagination. |
+| `GET` | `/api/transactions/{id}` | JWT | Get one owned transaction. |
+| `PUT` | `/api/transactions/{id}` | JWT | Update one owned transaction. |
+| `DELETE` | `/api/transactions/{id}` | JWT | Delete one owned transaction. |
+
+Supported transaction query parameters:
+
+| Parameter | Example | Notes |
 | --- | --- | --- |
-| `GET /api/health` | Public | Health check |
-| `POST /api/auth/register` | Public | Creates a user |
-| `POST /api/auth/login` | Public | Returns Bearer access token |
-| `POST /api/categories` | Protected | Create category for authenticated user |
-| `GET /api/categories` | Protected | List authenticated user's categories |
-| `GET /api/categories/{id}` | Protected | Get owned category |
-| `PUT /api/categories/{id}` | Protected | Update owned category |
-| `DELETE /api/categories/{id}` | Protected | Delete owned category |
-| `POST /api/transactions` | Protected | Create transaction for authenticated user |
-| `GET /api/transactions` | Protected | Filter, paginate, and sort authenticated user's transactions |
-| `GET /api/transactions/{id}` | Protected | Get owned transaction |
-| `PUT /api/transactions/{id}` | Protected | Update owned transaction |
-| `DELETE /api/transactions/{id}` | Protected | Delete owned transaction |
-| `GET /api/dashboard/summary` | Protected | Authenticated user's income, expense, balance, and transaction count |
-| `GET /api/dashboard/category-breakdown` | Protected | Authenticated user's category totals for a date range and type |
-| `GET /api/dashboard/trend` | Protected | Authenticated user's date-bucketed income and expense trend |
-| `POST /api/budgets` | Protected | Create budget for authenticated user |
-| `GET /api/budgets` | Protected | List authenticated user's budgets |
-| `GET /api/budgets/{id}` | Protected | Get owned budget |
-| `PUT /api/budgets/{id}` | Protected | Update owned budget |
-| `DELETE /api/budgets/{id}` | Protected | Delete owned budget |
-| `GET /api/budgets/{id}/usage` | Protected | Get usage for owned budget |
+| `type` | `EXPENSE` | Optional. `INCOME` or `EXPENSE`. |
+| `categoryId` | `1` | Optional. |
+| `fromDate` | `2026-06-01` | Optional ISO date. |
+| `toDate` | `2026-06-30` | Optional ISO date. |
+| `minAmount` | `10.00` | Optional. |
+| `maxAmount` | `1000.00` | Optional. |
+| `page` | `0` | Optional pagination page. |
+| `size` | `20` | Optional page size. |
+| `sort` | `transactionDate,desc` | Optional Spring pageable sort. |
 
-## Budget API
+### Dashboard
 
-All `/api/budgets/**` endpoints require `Authorization: Bearer <accessToken>`. A missing or invalid JWT returns `401 Unauthorized`.
+| Method | Endpoint | Auth | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api/dashboard/summary` | JWT | Income, expense, and balance summary. |
+| `GET` | `/api/dashboard/category-breakdown` | JWT | Totals grouped by category. |
+| `GET` | `/api/dashboard/trend` | JWT | Time-series income/expense trend. |
 
-Budget request body:
+Dashboard query parameters:
 
-```json
-{
-  "categoryId": 3,
-  "amount": 500.00,
-  "startDate": "2026-07-01",
-  "endDate": "2026-07-31"
-}
-```
+| Endpoint | Parameters |
+| --- | --- |
+| `/api/dashboard/summary` | Optional `fromDate`, `toDate` |
+| `/api/dashboard/category-breakdown` | Required `fromDate`, `toDate`, `type` |
+| `/api/dashboard/trend` | Required `fromDate`, `toDate`; optional `groupBy` defaulting to `MONTH` |
 
-Budget response fields are `id`, `categoryId`, `categoryName`, `amount`, `startDate`, `endDate`, `createdAt`, and `updatedAt`.
+### Budgets
 
-Budget usage response fields are `budgetId`, `categoryId`, `categoryName`, `limitAmount`, `spentAmount`, `remainingAmount`, `usagePercentage`, `exceeded`, `startDate`, and `endDate`.
+| Method | Endpoint | Auth | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/budgets` | JWT | Create a budget for an owned expense category. |
+| `GET` | `/api/budgets` | JWT | List current user's budgets. |
+| `GET` | `/api/budgets/{id}` | JWT | Get one owned budget. |
+| `PUT` | `/api/budgets/{id}` | JWT | Update one owned budget. |
+| `DELETE` | `/api/budgets/{id}` | JWT | Delete one owned budget. |
+| `GET` | `/api/budgets/{id}/usage` | JWT | Show usage for one owned budget. |
 
-Business rules:
+Budget rules:
 
 - Budgets belong to the authenticated user.
-- The selected category must belong to the authenticated user.
-- The selected category must be an `EXPENSE` category.
+- Budgets must use categories owned by the authenticated user.
+- Only `EXPENSE` categories can have budgets.
 - Cross-user budget access returns `404 Not Found`.
 - `categoryId`, `amount`, `startDate`, and `endDate` are required.
 - `amount` must be at least `0.01`.
 - `startDate` must be on or before `endDate`.
-- Usage calculates `spentAmount` from authenticated-user `EXPENSE` transactions in the same category and inclusive date range.
-- Usage calculates `remainingAmount` and `usagePercentage` with `BigDecimal`, not `double`.
+- Budget CRUD responses use `amount`.
+- Budget usage responses use `limitAmount`.
+- Budget usage counts authenticated-user `EXPENSE` transactions in the same category and inclusive budget date range.
+- Budget usage calculates `remainingAmount` and `usagePercentage` with `BigDecimal`.
 
-Create budget:
+## Example Requests and Responses
+
+### Register
+
+Request:
+
+```http
+POST /api/auth/register
+Content-Type: application/json
+```
+
+```json
+{
+  "email": "alex@example.com",
+  "password": "password123",
+  "fullName": "Alex Nguyen"
+}
+```
+
+Response:
+
+```json
+{
+  "id": 1,
+  "email": "alex@example.com",
+  "fullName": "Alex Nguyen",
+  "role": "USER",
+  "createdAt": "2026-06-18T09:00:00"
+}
+```
+
+### Login
+
+Request:
+
+```http
+POST /api/auth/login
+Content-Type: application/json
+```
+
+```json
+{
+  "email": "alex@example.com",
+  "password": "password123"
+}
+```
+
+Response:
+
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
+  "tokenType": "Bearer",
+  "user": {
+    "id": 1,
+    "email": "alex@example.com",
+    "fullName": "Alex Nguyen",
+    "role": "USER",
+    "createdAt": "2026-06-18T09:00:00"
+  }
+}
+```
+
+### Create Category
+
+Request:
+
+```http
+POST /api/categories
+Authorization: Bearer <accessToken>
+Content-Type: application/json
+```
+
+```json
+{
+  "name": "Food",
+  "type": "EXPENSE"
+}
+```
+
+Response:
+
+```json
+{
+  "id": 1,
+  "name": "Food",
+  "type": "EXPENSE",
+  "createdAt": "2026-06-18T09:05:00",
+  "updatedAt": "2026-06-18T09:05:00"
+}
+```
+
+### Create Transaction
+
+Request:
+
+```http
+POST /api/transactions
+Authorization: Bearer <accessToken>
+Content-Type: application/json
+```
+
+```json
+{
+  "type": "EXPENSE",
+  "amount": 25.50,
+  "categoryId": 1,
+  "description": "Lunch",
+  "transactionDate": "2026-06-18"
+}
+```
+
+Response:
+
+```json
+{
+  "id": 10,
+  "type": "EXPENSE",
+  "amount": 25.50,
+  "categoryId": 1,
+  "categoryName": "Food",
+  "categoryType": "EXPENSE",
+  "description": "Lunch",
+  "transactionDate": "2026-06-18",
+  "createdAt": "2026-06-18T09:10:00",
+  "updatedAt": "2026-06-18T09:10:00"
+}
+```
+
+### Dashboard Summary
+
+Request:
+
+```http
+GET /api/dashboard/summary?fromDate=2026-06-01&toDate=2026-06-30
+Authorization: Bearer <accessToken>
+```
+
+Response:
+
+```json
+{
+  "totalIncome": 5000000.00,
+  "totalExpense": 2400000.00,
+  "balance": 2600000.00,
+  "transactionCount": 12
+}
+```
+
+### Create Budget
+
+Request:
 
 ```http
 POST /api/budgets
@@ -164,76 +389,60 @@ Content-Type: application/json
 
 ```json
 {
-  "categoryId": 3,
-  "amount": 500.00,
-  "startDate": "2026-07-01",
-  "endDate": "2026-07-31"
+  "categoryId": 1,
+  "amount": 3000000.00,
+  "startDate": "2026-06-01",
+  "endDate": "2026-06-30"
 }
 ```
 
+Response:
+
 ```json
 {
-  "id": 10,
-  "categoryId": 3,
-  "categoryName": "Groceries",
-  "amount": 500.00,
-  "startDate": "2026-07-01",
-  "endDate": "2026-07-31",
-  "createdAt": "2026-07-05T10:15:30",
-  "updatedAt": "2026-07-05T10:15:30"
+  "id": 5,
+  "categoryId": 1,
+  "categoryName": "Food",
+  "amount": 3000000.00,
+  "startDate": "2026-06-01",
+  "endDate": "2026-06-30",
+  "createdAt": "2026-06-18T09:15:00",
+  "updatedAt": "2026-06-18T09:15:00"
 }
 ```
 
-List budgets:
+### Budget Usage
+
+Request:
 
 ```http
-GET /api/budgets
+GET /api/budgets/5/usage
 Authorization: Bearer <accessToken>
 ```
 
-```json
-[
-  {
-    "id": 10,
-    "categoryId": 3,
-    "categoryName": "Groceries",
-    "amount": 500.00,
-    "startDate": "2026-07-01",
-    "endDate": "2026-07-31",
-    "createdAt": "2026-07-05T10:15:30",
-    "updatedAt": "2026-07-05T10:15:30"
-  }
-]
-```
-
-Get budget usage:
-
-```http
-GET /api/budgets/10/usage
-Authorization: Bearer <accessToken>
-```
+Response:
 
 ```json
 {
-  "budgetId": 10,
-  "categoryId": 3,
-  "categoryName": "Groceries",
-  "limitAmount": 500.00,
-  "spentAmount": 125.50,
-  "remainingAmount": 374.50,
-  "usagePercentage": 25.10,
+  "budgetId": 5,
+  "categoryId": 1,
+  "categoryName": "Food",
+  "limitAmount": 3000000.00,
+  "spentAmount": 2400000.00,
+  "remainingAmount": 600000.00,
+  "usagePercentage": 80.00,
   "exceeded": false,
-  "startDate": "2026-07-01",
-  "endDate": "2026-07-31"
+  "startDate": "2026-06-01",
+  "endDate": "2026-06-30"
 }
 ```
 
-## Security and Data Rules
+## JWT Security and User Data Isolation
 
-- All `/api/**` endpoints require JWT except `POST /api/auth/register` and `POST /api/auth/login`.
-- Missing or invalid JWT credentials return `401 Unauthorized`.
-- Category, transaction, dashboard, and budget data is scoped to the authenticated user.
-- A user cannot read, update, or delete another user's categories, transactions, or budgets.
-- Transactions can only reference categories owned by the authenticated user.
-- Transaction and category types are validated for consistency.
-- Transaction descriptions are limited to `255` characters in both DTO validation and the entity column.
+- Protected endpoints require `Authorization: Bearer <accessToken>`.
+- JWTs are signed with `APP_JWT_SECRET`; keep this value private and do not commit real secrets.
+- The API resolves the current user from the JWT and scopes reads/writes to that user.
+- Categories, transactions, budgets, dashboard analytics, and budget usage only use data owned by the authenticated user.
+- Attempts to access another user's category, transaction, or budget are rejected, typically with `404 Not Found` so resource existence is not leaked.
+- Budget creation rejects categories owned by another user.
+- Budget usage only counts the authenticated user's `EXPENSE` transactions in the budget category and inclusive budget date range.

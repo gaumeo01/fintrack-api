@@ -1,0 +1,19 @@
+meta {
+  name: Import transactions CSV
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/transactions/import
+  body: multipartForm
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+body:multipart-form {
+  file: @file(transactions-import.csv)
+}

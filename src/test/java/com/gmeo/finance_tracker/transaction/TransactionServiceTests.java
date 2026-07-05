@@ -11,6 +11,7 @@ import com.gmeo.finance_tracker.category.Category;
 import com.gmeo.finance_tracker.category.CategoryRepository;
 import com.gmeo.finance_tracker.category.enums.CategoryType;
 import com.gmeo.finance_tracker.common.dto.PageResponse;
+import com.gmeo.finance_tracker.common.exception.BadRequestException;
 import com.gmeo.finance_tracker.common.exception.ResourceNotFoundException;
 import com.gmeo.finance_tracker.security.CurrentUserService;
 import com.gmeo.finance_tracker.transaction.dto.TransactionRequest;
@@ -29,6 +30,7 @@ import org.mockito.Mockito;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 
 class TransactionServiceTests {
@@ -93,6 +95,22 @@ class TransactionServiceTests {
     }
 
     @Test
+    void createTransactionRejectsMismatchedCategoryType() {
+        Category category = new Category();
+        category.setId(1L);
+        category.setName("Salary");
+        category.setType(CategoryType.INCOME);
+
+        when(categoryRepository.findByIdAndUserId(1L, 7L)).thenReturn(Optional.of(category));
+
+        assertThatThrownBy(() -> transactionService.createTransaction(createRequest()))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Transaction type must match category type");
+
+        verify(transactionRepository, never()).save(any(Transaction.class));
+    }
+
+    @Test
     void getTransactionsReturnsPaginatedResponse() {
         Category category = new Category();
         category.setId(1L);
@@ -120,6 +138,7 @@ class TransactionServiceTests {
                 LocalDate.of(2026, 5, 31),
                 new BigDecimal("10"),
                 new BigDecimal("100"),
+                "lunch",
                 pageable);
 
         assertThat(response.getContent()).hasSize(1);
@@ -143,6 +162,57 @@ class TransactionServiceTests {
     }
 
     @Test
+    void exportTransactionsReturnsCsvWithEscapedValues() {
+        Category category = new Category();
+        category.setId(1L);
+        category.setName("Food, \"Groceries\"");
+        category.setType(CategoryType.EXPENSE);
+
+        Transaction transaction = new Transaction();
+        transaction.setId(10L);
+        transaction.setType(TransactionType.EXPENSE);
+        transaction.setAmount(new BigDecimal("25.50"));
+        transaction.setCategory(category);
+        transaction.setDescription("Lunch,\nwith \"team\"");
+        transaction.setTransactionDate(LocalDate.of(2026, 5, 20));
+        transaction.setCreatedAt(LocalDateTime.of(2026, 5, 20, 10, 0));
+        transaction.setUpdatedAt(LocalDateTime.of(2026, 5, 20, 11, 30));
+
+        when(transactionRepository.findAll(Mockito.<Specification<Transaction>>any(), any(Sort.class)))
+                .thenReturn(List.of(transaction));
+
+        String csv = transactionService.exportTransactions(
+                TransactionType.EXPENSE,
+                1L,
+                LocalDate.of(2026, 5, 1),
+                LocalDate.of(2026, 5, 31),
+                new BigDecimal("10"),
+                new BigDecimal("100"),
+                "lunch");
+
+        assertThat(csv).isEqualTo(
+                "id,type,amount,categoryId,categoryName,description,transactionDate,createdAt,updatedAt\n"
+                        + "10,EXPENSE,25.50,1,\"Food, \"\"Groceries\"\"\",\"Lunch,\n"
+                        + "with \"\"team\"\"\",2026-05-20,2026-05-20T10:00,2026-05-20T11:30");
+
+        ArgumentCaptor<Sort> sortCaptor = ArgumentCaptor.forClass(Sort.class);
+        verify(transactionRepository).findAll(Mockito.<Specification<Transaction>>any(), sortCaptor.capture());
+        assertThat(sortCaptor.getValue().getOrderFor("transactionDate").getDirection()).isEqualTo(Sort.Direction.DESC);
+        assertThat(sortCaptor.getValue().getOrderFor("id").getDirection()).isEqualTo(Sort.Direction.DESC);
+    }
+
+    @Test
+    void exportTransactionsReturnsOnlyHeaderWhenNoTransactionsMatch() {
+        when(transactionRepository.findAll(Mockito.<Specification<Transaction>>any(), any(Sort.class)))
+                .thenReturn(List.of());
+
+        String csv = transactionService.exportTransactions(null, null, null, null, null, null, null);
+
+        assertThat(csv).isEqualTo(
+                "id,type,amount,categoryId,categoryName,description,transactionDate,createdAt,updatedAt");
+    }
+
+    @Test
     void cannotAccessAnotherUsersTransaction() {
         when(transactionRepository.findByIdAndUserId(10L, 7L)).thenReturn(Optional.empty());
 
@@ -160,6 +230,62 @@ class TransactionServiceTests {
                 .hasMessage("Transaction not found with id: 10");
 
         verify(transactionRepository, never()).save(any(Transaction.class));
+    }
+
+    @Test
+    void updateTransactionRejectsMismatchedCategoryType() {
+        Transaction existingTransaction = transaction(10L);
+        Category incomeCategory = new Category();
+        incomeCategory.setId(2L);
+        incomeCategory.setName("Salary");
+        incomeCategory.setType(CategoryType.INCOME);
+
+        TransactionRequest request = createRequest();
+        request.setCategoryId(2L);
+
+        when(transactionRepository.findByIdAndUserId(10L, 7L)).thenReturn(Optional.of(existingTransaction));
+        when(categoryRepository.findByIdAndUserId(2L, 7L)).thenReturn(Optional.of(incomeCategory));
+
+        assertThatThrownBy(() -> transactionService.updateTransaction(10L, request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Transaction type must match category type");
+
+        verify(transactionRepository, never()).save(any(Transaction.class));
+    }
+
+    @Test
+    void getTransactionsRejectsFromDateAfterToDate() {
+        Pageable pageable = PageRequest.of(0, 10);
+
+        assertThatThrownBy(() -> transactionService.getTransactions(
+                null,
+                null,
+                LocalDate.of(2026, 5, 31),
+                LocalDate.of(2026, 5, 1),
+                null,
+                null,
+                null,
+                pageable))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("fromDate must be before or equal to toDate");
+
+        verify(transactionRepository, never()).findAll(Mockito.<Specification<Transaction>>any(), any(Pageable.class));
+    }
+
+    @Test
+    void exportTransactionsRejectsMinAmountGreaterThanMaxAmount() {
+        assertThatThrownBy(() -> transactionService.exportTransactions(
+                null,
+                null,
+                null,
+                null,
+                new BigDecimal("100"),
+                new BigDecimal("10"),
+                null))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("minAmount must be less than or equal to maxAmount");
+
+        verify(transactionRepository, never()).findAll(Mockito.<Specification<Transaction>>any(), any(Sort.class));
     }
 
     @Test

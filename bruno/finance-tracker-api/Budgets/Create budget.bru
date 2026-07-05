@@ -1,0 +1,25 @@
+meta {
+  name: Create budget
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/budgets
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "categoryId": {{categoryId}},
+    "amount": 3000000.00,
+    "startDate": "{{fromDate}}",
+    "endDate": "{{toDate}}"
+  }
+}

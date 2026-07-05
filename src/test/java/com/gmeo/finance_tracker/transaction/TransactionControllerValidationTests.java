@@ -7,12 +7,15 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.gmeo.finance_tracker.category.enums.CategoryType;
 import com.gmeo.finance_tracker.auth.JwtService;
 import com.gmeo.finance_tracker.common.dto.PageResponse;
+import com.gmeo.finance_tracker.common.exception.BadRequestException;
 import com.gmeo.finance_tracker.common.exception.GlobalExceptionHandler;
 import com.gmeo.finance_tracker.transaction.dto.TransactionRequest;
 import com.gmeo.finance_tracker.transaction.dto.TransactionResponse;
@@ -76,6 +79,7 @@ class TransactionControllerValidationTests {
                 eq(LocalDate.of(2026, 5, 31)),
                 eq(new BigDecimal("10")),
                 eq(new BigDecimal("100")),
+                eq("lunch"),
                 any(Pageable.class)))
                 .thenReturn(response);
 
@@ -86,6 +90,7 @@ class TransactionControllerValidationTests {
                         .param("toDate", "2026-05-31")
                         .param("minAmount", "10")
                         .param("maxAmount", "100")
+                        .param("keyword", "lunch")
                         .param("page", "0")
                         .param("size", "10")
                         .param("sort", "transactionDate,desc"))
@@ -107,6 +112,7 @@ class TransactionControllerValidationTests {
                 eq(LocalDate.of(2026, 5, 31)),
                 eq(new BigDecimal("10")),
                 eq(new BigDecimal("100")),
+                eq("lunch"),
                 any(Pageable.class));
     }
 
@@ -114,6 +120,7 @@ class TransactionControllerValidationTests {
     void getTransactionsAcceptsSortingByTransactionDateDescending() throws Exception {
         when(transactionService.getTransactions(
                 eq(TransactionType.EXPENSE),
+                eq(null),
                 eq(null),
                 eq(null),
                 eq(null),
@@ -137,11 +144,118 @@ class TransactionControllerValidationTests {
                 eq(null),
                 eq(null),
                 eq(null),
+                eq(null),
                 pageableCaptor.capture());
 
         Sort.Order order = pageableCaptor.getValue().getSort().getOrderFor("transactionDate");
         org.assertj.core.api.Assertions.assertThat(order).isNotNull();
         org.assertj.core.api.Assertions.assertThat(order.getDirection()).isEqualTo(Sort.Direction.DESC);
+    }
+
+    @Test
+    void exportTransactionsReturnsCsvAttachment() throws Exception {
+        String csv = "id,type,amount,categoryId,categoryName,description,transactionDate,createdAt,updatedAt\n"
+                + "1,EXPENSE,25.50,1,Food,Lunch,2026-05-20,2026-05-20T10:00,2026-05-20T10:00";
+
+        when(transactionService.exportTransactions(
+                eq(TransactionType.EXPENSE),
+                eq(1L),
+                eq(LocalDate.of(2026, 5, 1)),
+                eq(LocalDate.of(2026, 5, 31)),
+                eq(new BigDecimal("10")),
+                eq(new BigDecimal("100")),
+                eq("lunch")))
+                .thenReturn(csv);
+
+        mockMvc.perform(get("/api/transactions/export")
+                        .param("type", "EXPENSE")
+                        .param("categoryId", "1")
+                        .param("fromDate", "2026-05-01")
+                        .param("toDate", "2026-05-31")
+                        .param("minAmount", "10")
+                        .param("maxAmount", "100")
+                        .param("keyword", "lunch"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.parseMediaType("text/csv")))
+                .andExpect(header().string(
+                        "Content-Disposition",
+                        "attachment; filename=\"transactions-export.csv\""))
+                .andExpect(content().string(csv));
+
+        verify(transactionService).exportTransactions(
+                eq(TransactionType.EXPENSE),
+                eq(1L),
+                eq(LocalDate.of(2026, 5, 1)),
+                eq(LocalDate.of(2026, 5, 31)),
+                eq(new BigDecimal("10")),
+                eq(new BigDecimal("100")),
+                eq("lunch"));
+    }
+
+    @Test
+    void exportTransactionsReturnsHeaderOnlyCsv() throws Exception {
+        String csv = "id,type,amount,categoryId,categoryName,description,transactionDate,createdAt,updatedAt";
+        when(transactionService.exportTransactions(
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null)))
+                .thenReturn(csv);
+
+        mockMvc.perform(get("/api/transactions/export"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.parseMediaType("text/csv")))
+                .andExpect(content().string(csv));
+
+        verify(transactionService).exportTransactions(
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null));
+    }
+
+    @Test
+    void exportTransactionsRejectsFromDateAfterToDate() throws Exception {
+        when(transactionService.exportTransactions(
+                eq(null),
+                eq(null),
+                eq(LocalDate.of(2026, 5, 31)),
+                eq(LocalDate.of(2026, 5, 1)),
+                eq(null),
+                eq(null),
+                eq(null)))
+                .thenThrow(new BadRequestException("fromDate must be before or equal to toDate"));
+
+        mockMvc.perform(get("/api/transactions/export")
+                        .param("fromDate", "2026-05-31")
+                        .param("toDate", "2026-05-01"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("fromDate must be before or equal to toDate"));
+    }
+
+    @Test
+    void exportTransactionsRejectsMinAmountGreaterThanMaxAmount() throws Exception {
+        when(transactionService.exportTransactions(
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(new BigDecimal("100")),
+                eq(new BigDecimal("10")),
+                eq(null)))
+                .thenThrow(new BadRequestException("minAmount must be less than or equal to maxAmount"));
+
+        mockMvc.perform(get("/api/transactions/export")
+                        .param("minAmount", "100")
+                        .param("maxAmount", "10"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("minAmount must be less than or equal to maxAmount"));
     }
 
     @Test
@@ -179,6 +293,36 @@ class TransactionControllerValidationTests {
     }
 
     @Test
+    void createTransactionAllowsDescriptionAtMaxLength() throws Exception {
+        String description = "a".repeat(255);
+        TransactionResponse response = new TransactionResponse();
+        response.setId(1L);
+        response.setType(TransactionType.EXPENSE);
+        response.setAmount(new BigDecimal("25.50"));
+        response.setCategoryId(1L);
+        response.setCategoryName("Food");
+        response.setCategoryType(CategoryType.EXPENSE);
+        response.setDescription(description);
+        response.setTransactionDate(LocalDate.of(2026, 5, 20));
+
+        when(transactionService.createTransaction(any(TransactionRequest.class))).thenReturn(response);
+
+        mockMvc.perform(post("/api/transactions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "type": "EXPENSE",
+                                  "amount": 25.50,
+                                  "categoryId": 1,
+                                  "description": "%s",
+                                  "transactionDate": "2026-05-20"
+                                }
+                                """.formatted(description)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.description").value(description));
+    }
+
+    @Test
     void createTransactionReturnsBadRequestForInvalidAmount() throws Exception {
         mockMvc.perform(post("/api/transactions")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -193,6 +337,28 @@ class TransactionControllerValidationTests {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.validationErrors.amount").exists());
+
+        verifyNoInteractions(transactionService);
+    }
+
+    @Test
+    void createTransactionReturnsBadRequestForDescriptionOverMaxLength() throws Exception {
+        String description = "a".repeat(256);
+
+        mockMvc.perform(post("/api/transactions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "type": "EXPENSE",
+                                  "amount": 25.50,
+                                  "categoryId": 1,
+                                  "description": "%s",
+                                  "transactionDate": "2026-05-20"
+                                }
+                                """.formatted(description)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.validationErrors.description")
+                        .value("description must be at most 255 characters"));
 
         verifyNoInteractions(transactionService);
     }
@@ -231,5 +397,45 @@ class TransactionControllerValidationTests {
                 .andExpect(jsonPath("$.validationErrors.type").exists());
 
         verifyNoInteractions(transactionService);
+    }
+
+    @Test
+    void getTransactionsRejectsFromDateAfterToDate() throws Exception {
+        when(transactionService.getTransactions(
+                eq(null),
+                eq(null),
+                eq(LocalDate.of(2026, 5, 31)),
+                eq(LocalDate.of(2026, 5, 1)),
+                eq(null),
+                eq(null),
+                eq(null),
+                any(Pageable.class)))
+                .thenThrow(new BadRequestException("fromDate must be before or equal to toDate"));
+
+        mockMvc.perform(get("/api/transactions")
+                        .param("fromDate", "2026-05-31")
+                        .param("toDate", "2026-05-01"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("fromDate must be before or equal to toDate"));
+    }
+
+    @Test
+    void getTransactionsRejectsMinAmountGreaterThanMaxAmount() throws Exception {
+        when(transactionService.getTransactions(
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(new BigDecimal("100")),
+                eq(new BigDecimal("10")),
+                eq(null),
+                any(Pageable.class)))
+                .thenThrow(new BadRequestException("minAmount must be less than or equal to maxAmount"));
+
+        mockMvc.perform(get("/api/transactions")
+                        .param("minAmount", "100")
+                        .param("maxAmount", "10"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("minAmount must be less than or equal to maxAmount"));
     }
 }

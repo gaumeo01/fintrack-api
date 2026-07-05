@@ -1,5 +1,6 @@
 package com.gmeo.finance_tracker.security;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -10,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.gmeo.finance_tracker.auth.JwtService;
 import com.gmeo.finance_tracker.budget.BudgetRepository;
 import com.gmeo.finance_tracker.category.CategoryRepository;
+import com.gmeo.finance_tracker.recurring.RecurringTransactionRepository;
 import com.gmeo.finance_tracker.transaction.TransactionRepository;
 import com.gmeo.finance_tracker.user.User;
 import com.gmeo.finance_tracker.user.UserRepository;
@@ -40,10 +42,13 @@ class UserDataIsolationIntegrationTests {
     private CategoryRepository categoryRepository;
 
     @Autowired
+    private BudgetRepository budgetRepository;
+
+    @Autowired
     private TransactionRepository transactionRepository;
 
     @Autowired
-    private BudgetRepository budgetRepository;
+    private RecurringTransactionRepository recurringTransactionRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -57,6 +62,7 @@ class UserDataIsolationIntegrationTests {
     @BeforeEach
     void setUp() {
         transactionRepository.deleteAll();
+        recurringTransactionRepository.deleteAll();
         budgetRepository.deleteAll();
         categoryRepository.deleteAll();
         userRepository.deleteAll();
@@ -135,6 +141,57 @@ class UserDataIsolationIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].description").value("User A Lunch"));
+    }
+
+    @Test
+    void transactionExportOnlyReturnsAuthenticatedUsersData() throws Exception {
+        Long userACategoryId = createCategory(userAToken, "User A Food");
+        Long userBCategoryId = createCategory(userBToken, "User B Food");
+        createTransaction(userAToken, userACategoryId, "User A Lunch");
+        createTransaction(userBToken, userBCategoryId, "User B Lunch");
+
+        MvcResult result = mockMvc.perform(get("/api/transactions/export")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(userAToken))
+                        .param("type", "EXPENSE")
+                        .param("fromDate", "2026-05-01")
+                        .param("toDate", "2026-05-31"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String csv = result.getResponse().getContentAsString();
+        assertThat(csv).contains("User A Lunch");
+        assertThat(csv).doesNotContain("User B Lunch");
+    }
+
+    @Test
+    void transactionKeywordSearchOnlyReturnsAuthenticatedUsersData() throws Exception {
+        Long userACategoryId = createCategory(userAToken, "User A Food");
+        Long userBCategoryId = createCategory(userBToken, "User B Food");
+        createTransaction(userAToken, userACategoryId, "Shared lunch");
+        createTransaction(userBToken, userBCategoryId, "Shared lunch");
+
+        mockMvc.perform(get("/api/transactions")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(userAToken))
+                        .param("keyword", "shared"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].categoryName").value("User A Food"));
+    }
+
+    @Test
+    void monthlyReportOnlyUsesAuthenticatedUsersData() throws Exception {
+        Long userACategoryId = createCategory(userAToken, "User A Food");
+        Long userBCategoryId = createCategory(userBToken, "User B Food");
+        createTransaction(userAToken, userACategoryId, "User A Lunch");
+        createTransaction(userBToken, userBCategoryId, "User B Lunch");
+
+        mockMvc.perform(get("/api/reports/monthly")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(userAToken))
+                        .param("month", "2026-05"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.transactionCount").value(1))
+                .andExpect(jsonPath("$.totalExpense").value(25.50))
+                .andExpect(jsonPath("$.topExpenseCategories[0].categoryName").value("User A Food"));
     }
 
     private String createUserAndToken(String email, String fullName) {
