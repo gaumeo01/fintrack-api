@@ -181,7 +181,10 @@ class RecurringTransactionFlowTests {
                 userAToken,
                 categoryId,
                 LocalDate.now().minusDays(2).toString(),
-                LocalDate.now().minusDays(3).toString());
+                LocalDate.now().minusDays(2).toString());
+        mockMvc.perform(post("/api/recurring-transactions/{id}/generate", endedId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(userAToken)))
+                .andExpect(status().isOk());
 
         mockMvc.perform(post("/api/recurring-transactions/{id}/generate", inactiveId)
                         .header(HttpHeaders.AUTHORIZATION, bearer(userAToken)))
@@ -197,6 +200,36 @@ class RecurringTransactionFlowTests {
                         .header(HttpHeaders.AUTHORIZATION, bearer(userAToken)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Recurring transaction has ended"));
+    }
+
+    @Test
+    void createAndUpdateRejectReversedDateRange() throws Exception {
+        Long categoryId = createCategory(userAToken, "Food", "EXPENSE");
+        Long recurringId = createRecurring(userAToken, categoryId, "EXPENSE", "MONTHLY", "2026-06-01", true);
+
+        mockMvc.perform(post("/api/recurring-transactions")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(userAToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(recurringJsonWithEndDate(
+                                categoryId,
+                                "EXPENSE",
+                                "MONTHLY",
+                                "2026-06-30",
+                                "2026-06-01")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("startDate must be on or before endDate"));
+
+        mockMvc.perform(put("/api/recurring-transactions/{id}", recurringId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(userAToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(recurringJsonWithEndDate(
+                                categoryId,
+                                "EXPENSE",
+                                "MONTHLY",
+                                "2026-06-30",
+                                "2026-06-01")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("startDate must be on or before endDate"));
     }
 
     private String createUserAndToken(String email, String fullName) {
@@ -275,6 +308,25 @@ class RecurringTransactionFlowTests {
                   "active": %s
                 }
                 """.formatted(type, categoryId, frequency, startDate, active);
+    }
+
+    private String recurringJsonWithEndDate(
+            Long categoryId,
+            String type,
+            String frequency,
+            String startDate,
+            String endDate) {
+        return """
+                {
+                  "type": "%s",
+                  "amount": 25.50,
+                  "categoryId": %d,
+                  "description": "Recurring lunch",
+                  "frequency": "%s",
+                  "startDate": "%s",
+                  "endDate": "%s"
+                }
+                """.formatted(type, categoryId, frequency, startDate, endDate);
     }
 
     private String bearer(String token) {

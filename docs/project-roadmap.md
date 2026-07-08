@@ -20,6 +20,10 @@
 - Dashboard analytics backend
 - Budget CRUD backend
 - Budget usage backend
+- Transaction CSV import/export support
+- Monthly report API
+- Recurring transaction CRUD and manual generation
+- Recurring transaction date range validation
 - Unit and integration test coverage for auth, validation, filtering, and user isolation
 - README backend setup documentation
 
@@ -27,17 +31,18 @@
 
 - Auth: `POST /api/auth/register`, `POST /api/auth/login`
 - Categories: `POST`, `GET`, `GET /{id}`, `PUT /{id}`, `DELETE /{id}` under `/api/categories`
-- Transactions: `POST`, `GET`, `GET /{id}`, `PUT /{id}`, `DELETE /{id}` under `/api/transactions`
+- Transactions: `POST`, `GET`, `GET /{id}`, `PUT /{id}`, `DELETE /{id}`, `GET /export`, `POST /import` under `/api/transactions`
 - Dashboard: `GET /summary`, `GET /category-breakdown`, `GET /trend` under `/api/dashboard`
 - Budgets: `POST`, `GET`, `GET /{id}`, `PUT /{id}`, `DELETE /{id}`, `GET /{id}/usage` under `/api/budgets`
+- Reports: `GET /monthly` under `/api/reports`
+- Recurring transactions: `POST`, `GET`, `GET /{id}`, `PUT /{id}`, `DELETE /{id}`, `POST /{id}/generate` under `/api/recurring-transactions`
 - Health: `GET /api/health`
 
 ## Planned / Not Present In Current Code Snapshot
 
 - Frontend budget UI
 - Budget alerts/notifications
-- Report/statistics API
-- Import/export support
+- Scheduled recurring transaction generation
 
 ## Notes
 
@@ -45,5 +50,6 @@
 - User data must stay scoped to the authenticated user.
 - Transactions must use a category owned by the authenticated user.
 - Budgets must use an `EXPENSE` category owned by the authenticated user.
+- Recurring transactions must use a category owned by the authenticated user and `startDate` must be on or before `endDate` when provided.
 - Budget usage is calculated from matching authenticated-user `EXPENSE` transactions in the inclusive budget date range.
-- The latest verified full test run passed `104` tests.
+- The latest verified full test run passed `154` tests.

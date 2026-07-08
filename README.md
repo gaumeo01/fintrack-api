@@ -1,6 +1,6 @@
 # Finance Tracker API
 
-Finance Tracker API is a Spring Boot REST API for tracking personal income, expenses, categories, dashboard analytics, and budgets. It uses JWT authentication and keeps each user's data isolated from every other user.
+Finance Tracker API is a Spring Boot REST API for tracking personal income, expenses, categories, dashboard analytics, recurring transactions, monthly reports, imports/exports, and budgets. It uses JWT authentication and keeps each user's data isolated from every other user.
 
 ## Tech Stack
 
@@ -23,11 +23,14 @@ Finance Tracker API is a Spring Boot REST API for tracking personal income, expe
 - Authenticated category CRUD
 - Authenticated transaction CRUD
 - Transaction filtering and pagination
+- Transaction CSV import and export
 - Dashboard summary
 - Dashboard category breakdown
 - Dashboard trend
 - Budget CRUD
 - Budget usage/progress API
+- Recurring transaction CRUD and manual generation
+- Monthly report API
 - User-owned data isolation
 - Cross-user access protection
 
@@ -35,15 +38,17 @@ Finance Tracker API is a Spring Boot REST API for tracking personal income, expe
 
 ```text
 src/main/java/com/gmeo/finance_tracker
-├── auth/          # Registration, login, JWT issuing
-├── budget/        # Budget CRUD and budget usage/progress
-├── category/      # User-owned income/expense categories
-├── common/        # Shared DTOs, responses, exceptions, utilities
-├── config/        # Spring Security configuration
-├── dashboard/     # Dashboard analytics endpoints
-├── security/      # JWT filter and current-user lookup
-├── transaction/   # Transaction CRUD, filtering, specifications
-└── user/          # User entity, repository, and user service
+|-- auth/          # Registration, login, password changes, JWT issuing
+|-- budget/        # Budget CRUD and budget usage/progress
+|-- category/      # User-owned income/expense categories
+|-- common/        # Shared DTOs, responses, exceptions, utilities
+|-- config/        # Spring Security configuration
+|-- dashboard/     # Dashboard analytics endpoints
+|-- recurring/     # Recurring transaction schedules and generation
+|-- report/        # Monthly report endpoints
+|-- security/      # JWT filter and current-user lookup
+|-- transaction/   # Transaction CRUD, filtering, import/export, specifications
+`-- user/          # User entity, repository, and user service
 ```
 
 Tests live under `src/test/java/com/gmeo/finance_tracker`.
@@ -172,6 +177,8 @@ Category types are `INCOME` and `EXPENSE`.
 | `GET` | `/api/transactions/{id}` | JWT | Get one owned transaction. |
 | `PUT` | `/api/transactions/{id}` | JWT | Update one owned transaction. |
 | `DELETE` | `/api/transactions/{id}` | JWT | Delete one owned transaction. |
+| `GET` | `/api/transactions/export` | JWT | Export filtered transactions as CSV. |
+| `POST` | `/api/transactions/import` | JWT | Import transactions from CSV. |
 
 Supported transaction query parameters:
 
@@ -203,6 +210,18 @@ Dashboard query parameters:
 | `/api/dashboard/category-breakdown` | Required `fromDate`, `toDate`, `type` |
 | `/api/dashboard/trend` | Required `fromDate`, `toDate`; optional `groupBy` defaulting to `MONTH` |
 
+### Reports
+
+| Method | Endpoint | Auth | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api/reports/monthly` | JWT | Monthly totals, category rankings, and daily trend. |
+
+Report query parameters:
+
+| Endpoint | Parameters |
+| --- | --- |
+| `/api/reports/monthly` | Required `month` in `YYYY-MM` format |
+
 ### Budgets
 
 | Method | Endpoint | Auth | Description |
@@ -227,6 +246,28 @@ Budget rules:
 - Budget usage responses use `limitAmount`.
 - Budget usage counts authenticated-user `EXPENSE` transactions in the same category and inclusive budget date range.
 - Budget usage calculates `remainingAmount` and `usagePercentage` with `BigDecimal`.
+
+### Recurring Transactions
+
+| Method | Endpoint | Auth | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/recurring-transactions` | JWT | Create a recurring transaction schedule. |
+| `GET` | `/api/recurring-transactions` | JWT | List current user's recurring transactions. |
+| `GET` | `/api/recurring-transactions/{id}` | JWT | Get one owned recurring transaction. |
+| `PUT` | `/api/recurring-transactions/{id}` | JWT | Update one owned recurring transaction. |
+| `DELETE` | `/api/recurring-transactions/{id}` | JWT | Delete one owned recurring transaction. |
+| `POST` | `/api/recurring-transactions/{id}/generate` | JWT | Generate the next due transaction and advance the schedule. |
+
+Recurring transaction rules:
+
+- Recurring transactions belong to the authenticated user.
+- Recurring transactions must use categories owned by the authenticated user.
+- The recurring transaction type must match the category type.
+- Cross-user recurring transaction access returns `404 Not Found`.
+- `type`, `amount`, `categoryId`, `frequency`, and `startDate` are required.
+- `amount` must be at least `0.01`.
+- `startDate` must be on or before `endDate` when `endDate` is provided.
+- Supported frequencies are `DAILY`, `WEEKLY`, `MONTHLY`, and `YEARLY`.
 
 ## Example Requests and Responses
 
@@ -442,7 +483,7 @@ Response:
 - Protected endpoints require `Authorization: Bearer <accessToken>`.
 - JWTs are signed with `APP_JWT_SECRET`; keep this value private and do not commit real secrets.
 - The API resolves the current user from the JWT and scopes reads/writes to that user.
-- Categories, transactions, budgets, dashboard analytics, and budget usage only use data owned by the authenticated user.
-- Attempts to access another user's category, transaction, or budget are rejected, typically with `404 Not Found` so resource existence is not leaked.
+- Categories, transactions, budgets, recurring transactions, reports, dashboard analytics, and budget usage only use data owned by the authenticated user.
+- Attempts to access another user's category, transaction, budget, or recurring transaction are rejected, typically with `404 Not Found` so resource existence is not leaked.
 - Budget creation rejects categories owned by another user.
 - Budget usage only counts the authenticated user's `EXPENSE` transactions in the budget category and inclusive budget date range.
