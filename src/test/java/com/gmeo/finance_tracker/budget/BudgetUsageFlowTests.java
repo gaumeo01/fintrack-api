@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.gmeo.finance_tracker.account.AccountRepository;
 import com.gmeo.finance_tracker.auth.JwtService;
 import com.gmeo.finance_tracker.category.CategoryRepository;
 import com.gmeo.finance_tracker.transaction.TransactionRepository;
@@ -34,6 +35,9 @@ class BudgetUsageFlowTests {
     private UserRepository userRepository;
 
     @Autowired
+    private AccountRepository accountRepository;
+
+    @Autowired
     private BudgetRepository budgetRepository;
 
     @Autowired
@@ -54,6 +58,7 @@ class BudgetUsageFlowTests {
     void setUp() {
         transactionRepository.deleteAll();
         budgetRepository.deleteAll();
+        accountRepository.deleteAll();
         categoryRepository.deleteAll();
         userRepository.deleteAll();
 

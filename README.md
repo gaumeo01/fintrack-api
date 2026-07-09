@@ -1,6 +1,6 @@
 # Finance Tracker API
 
-Finance Tracker API is a Spring Boot REST API for tracking personal income, expenses, categories, dashboard analytics, recurring transactions, monthly reports, imports/exports, and budgets. It uses JWT authentication and keeps each user's data isolated from every other user.
+Finance Tracker API is a Spring Boot REST API for tracking personal income, expenses, accounts, categories, dashboard analytics, recurring transactions, monthly reports, imports/exports, and budgets. It uses JWT authentication and keeps each user's data isolated from every other user.
 
 ## Tech Stack
 
@@ -20,6 +20,7 @@ Finance Tracker API is a Spring Boot REST API for tracking personal income, expe
 
 - User registration
 - Login with JWT
+- Authenticated account/wallet CRUD
 - Authenticated category CRUD
 - Authenticated transaction CRUD
 - Transaction filtering and pagination
@@ -39,6 +40,7 @@ Finance Tracker API is a Spring Boot REST API for tracking personal income, expe
 ```text
 src/main/java/com/gmeo/finance_tracker
 |-- auth/          # Registration, login, password changes, JWT issuing
+|-- account/       # User-owned account and wallet CRUD
 |-- budget/        # Budget CRUD and budget usage/progress
 |-- category/      # User-owned income/expense categories
 |-- common/        # Shared DTOs, responses, exceptions, utilities
@@ -155,6 +157,27 @@ Only registration and login are public. Endpoints under `/api/**` are protected 
 | --- | --- | --- | --- |
 | `POST` | `/api/auth/register` | Public | Create a new user account. |
 | `POST` | `/api/auth/login` | Public | Log in and receive a JWT access token. |
+
+### Accounts
+
+| Method | Endpoint | Auth | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/accounts` | JWT | Create an account or wallet. |
+| `GET` | `/api/accounts` | JWT | List current user's accounts. |
+| `GET` | `/api/accounts/{id}` | JWT | Get one owned account. |
+| `PUT` | `/api/accounts/{id}` | JWT | Update one owned account. |
+| `DELETE` | `/api/accounts/{id}` | JWT | Delete one owned account. |
+
+Account types are `CASH`, `BANK`, `E_WALLET`, `SAVINGS`, `CREDIT_CARD`, and `OTHER`.
+
+Account rules:
+
+- Accounts belong to the authenticated user.
+- Cross-user account access returns `404 Not Found`.
+- `name`, `type`, and `initialBalance` are required.
+- `currentBalance` is optional and defaults to `initialBalance`.
+- `active` is optional and defaults to `true`.
+- Transactions are not linked to accounts yet; the transaction API is unchanged.
 
 ### Categories
 
@@ -361,6 +384,39 @@ Response:
 }
 ```
 
+### Create Account
+
+Request:
+
+```http
+POST /api/accounts
+Authorization: Bearer <accessToken>
+Content-Type: application/json
+```
+
+```json
+{
+  "name": "Cash Wallet",
+  "type": "CASH",
+  "initialBalance": 1000000.00
+}
+```
+
+Response:
+
+```json
+{
+  "id": 3,
+  "name": "Cash Wallet",
+  "type": "CASH",
+  "initialBalance": 1000000.00,
+  "currentBalance": 1000000.00,
+  "active": true,
+  "createdAt": "2026-06-18T09:07:00",
+  "updatedAt": "2026-06-18T09:07:00"
+}
+```
+
 ### Create Transaction
 
 Request:
@@ -483,7 +539,7 @@ Response:
 - Protected endpoints require `Authorization: Bearer <accessToken>`.
 - JWTs are signed with `APP_JWT_SECRET`; keep this value private and do not commit real secrets.
 - The API resolves the current user from the JWT and scopes reads/writes to that user.
-- Categories, transactions, budgets, recurring transactions, reports, dashboard analytics, and budget usage only use data owned by the authenticated user.
-- Attempts to access another user's category, transaction, budget, or recurring transaction are rejected, typically with `404 Not Found` so resource existence is not leaked.
+- Accounts, categories, transactions, budgets, recurring transactions, reports, dashboard analytics, and budget usage only use data owned by the authenticated user.
+- Attempts to access another user's account, category, transaction, budget, or recurring transaction are rejected, typically with `404 Not Found` so resource existence is not leaked.
 - Budget creation rejects categories owned by another user.
 - Budget usage only counts the authenticated user's `EXPENSE` transactions in the budget category and inclusive budget date range.

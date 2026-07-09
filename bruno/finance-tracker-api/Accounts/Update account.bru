@@ -1,0 +1,26 @@
+meta {
+  name: Update account
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/api/accounts/{{accountId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "Main Bank",
+    "type": "BANK",
+    "initialBalance": 1000000.00,
+    "currentBalance": 1250000.00,
+    "active": true
+  }
+}
