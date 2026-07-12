@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -22,11 +21,9 @@ import org.springframework.web.bind.annotation.RestController;
 public class BudgetController {
 
     private final BudgetService budgetService;
-    private final BudgetUsageService budgetUsageService;
 
-    public BudgetController(BudgetService budgetService, BudgetUsageService budgetUsageService) {
+    public BudgetController(BudgetService budgetService) {
         this.budgetService = budgetService;
-        this.budgetUsageService = budgetUsageService;
     }
 
     @PostMapping
@@ -36,13 +33,8 @@ public class BudgetController {
     }
 
     @GetMapping
-    public List<BudgetResponse> getBudgets(@RequestParam String month) {
-        return budgetService.getBudgets(month);
-    }
-
-    @GetMapping("/usage")
-    public BudgetUsageResponse getBudgetUsage(@RequestParam String month) {
-        return budgetUsageService.getBudgetUsage(month);
+    public List<BudgetResponse> getAllBudgets() {
+        return budgetService.getAllBudgets();
     }
 
     @GetMapping("/{id}")
@@ -61,5 +53,10 @@ public class BudgetController {
     public ResponseEntity<Void> deleteBudget(@PathVariable Long id) {
         budgetService.deleteBudget(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/usage")
+    public BudgetUsageResponse getBudgetUsage(@PathVariable Long id) {
+        return budgetService.getBudgetUsage(id);
     }
 }

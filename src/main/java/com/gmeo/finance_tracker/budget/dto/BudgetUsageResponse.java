@@ -1,6 +1,7 @@
 package com.gmeo.finance_tracker.budget.dto;
 
-import java.util.List;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -8,6 +9,15 @@ import lombok.Setter;
 @Setter
 public class BudgetUsageResponse {
 
-    private String month;
-    private List<BudgetUsageItemResponse> items;
+    private Long budgetId;
+    private Long categoryId;
+    private String categoryName;
+    private BigDecimal limitAmount;
+    private BigDecimal spentAmount;
+    private BigDecimal remainingAmount;
+    private BigDecimal usagePercentage;
+    private String status;
+    private boolean exceeded;
+    private LocalDate startDate;
+    private LocalDate endDate;
 }

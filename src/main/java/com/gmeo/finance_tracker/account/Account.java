@@ -1,9 +1,11 @@
-package com.gmeo.finance_tracker.budget;
+package com.gmeo.finance_tracker.account;
 
-import com.gmeo.finance_tracker.category.Category;
+import com.gmeo.finance_tracker.account.enums.AccountType;
 import com.gmeo.finance_tracker.user.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -14,7 +16,6 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.Setter;
@@ -22,29 +23,32 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "budgets")
-public class Budget {
+@Table(name = "accounts")
+public class Account {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false, length = 100)
+    private String name;
+
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    private AccountType type;
+
+    @Column(nullable = false, precision = 19, scale = 2)
+    private BigDecimal initialBalance;
+
+    @Column(nullable = false, precision = 19, scale = 2)
+    private BigDecimal currentBalance;
+
+    @Column(nullable = false)
+    private boolean active = true;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id", nullable = false)
-    private Category category;
-
-    @Column(nullable = false, precision = 19, scale = 2)
-    private BigDecimal amount;
-
-    @Column(nullable = false)
-    private LocalDate startDate;
-
-    @Column(nullable = false)
-    private LocalDate endDate;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

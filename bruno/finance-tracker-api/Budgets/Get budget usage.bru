@@ -1,11 +1,11 @@
 meta {
-  name: Get budget usage by month
+  name: Get budget usage
   type: http
   seq: 6
 }
 
 get {
-  url: {{baseUrl}}/api/budgets/usage?month={{month}}
+  url: {{baseUrl}}/api/budgets/{{budgetId}}/usage
   body: none
   auth: none
 }

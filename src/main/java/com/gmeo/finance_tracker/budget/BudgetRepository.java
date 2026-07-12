@@ -1,20 +1,12 @@
 package com.gmeo.finance_tracker.budget;
 
-import com.gmeo.finance_tracker.category.enums.CategoryType;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface BudgetRepository extends JpaRepository<Budget, Long> {
 
-    List<Budget> findAllByUserIdAndMonthOrderByCategoryNameAsc(Long userId, LocalDate month);
-
-    List<Budget> findAllByUserIdAndMonthAndCategoryType(Long userId, LocalDate month, CategoryType categoryType);
+    List<Budget> findAllByUserId(Long userId);
 
     Optional<Budget> findByIdAndUserId(Long id, Long userId);
-
-    boolean existsByUserIdAndCategoryIdAndMonth(Long userId, Long categoryId, LocalDate month);
-
-    boolean existsByUserIdAndCategoryIdAndMonthAndIdNot(Long userId, Long categoryId, LocalDate month, Long id);
 }

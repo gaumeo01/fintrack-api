@@ -1,7 +1,6 @@
 package com.gmeo.finance_tracker.budget;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -13,11 +12,10 @@ import com.gmeo.finance_tracker.auth.JwtService;
 import com.gmeo.finance_tracker.budget.dto.BudgetRequest;
 import com.gmeo.finance_tracker.budget.dto.BudgetResponse;
 import com.gmeo.finance_tracker.budget.dto.BudgetUsageResponse;
-import com.gmeo.finance_tracker.category.enums.CategoryType;
 import com.gmeo.finance_tracker.common.exception.BadRequestException;
 import com.gmeo.finance_tracker.common.exception.GlobalExceptionHandler;
 import java.math.BigDecimal;
-import java.util.List;
+import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -40,9 +38,6 @@ class BudgetControllerValidationTests {
     private BudgetService budgetService;
 
     @MockitoBean
-    private BudgetUsageService budgetUsageService;
-
-    @MockitoBean
     private JwtService jwtService;
 
     @MockitoBean
@@ -50,38 +45,32 @@ class BudgetControllerValidationTests {
 
     @Test
     void createBudgetReturnsCreatedForValidRequest() throws Exception {
-        BudgetResponse response = response();
+        BudgetResponse response = new BudgetResponse();
+        response.setId(1L);
+        response.setCategoryId(2L);
+        response.setCategoryName("Food");
+        response.setAmount(new BigDecimal("100.00"));
+        response.setStartDate(LocalDate.of(2026, 6, 1));
+        response.setEndDate(LocalDate.of(2026, 6, 30));
+
         when(budgetService.createBudget(any(BudgetRequest.class))).thenReturn(response);
 
         mockMvc.perform(post("/api/budgets")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "categoryId": 1,
-                                  "amount": 300.00,
-                                  "month": "2026-06"
+                                  "categoryId": 2,
+                                  "amount": 100.00,
+                                  "startDate": "2026-06-01",
+                                  "endDate": "2026-06-30"
                                 }
                                 """))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(10))
-                .andExpect(jsonPath("$.categoryId").value(1))
-                .andExpect(jsonPath("$.categoryName").value("Food"))
-                .andExpect(jsonPath("$.categoryType").value("EXPENSE"))
-                .andExpect(jsonPath("$.amount").value(300.00))
-                .andExpect(jsonPath("$.month").value("2026-06"));
-    }
-
-    @Test
-    void getBudgetsReturnsBudgetsForMonth() throws Exception {
-        when(budgetService.getBudgets("2026-06")).thenReturn(List.of(response()));
-
-        mockMvc.perform(get("/api/budgets")
-                        .param("month", "2026-06"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(10))
-                .andExpect(jsonPath("$[0].month").value("2026-06"));
-
-        verify(budgetService).getBudgets("2026-06");
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.categoryId").value(2))
+                .andExpect(jsonPath("$.amount").value(100.00))
+                .andExpect(jsonPath("$.startDate").value("2026-06-01"))
+                .andExpect(jsonPath("$.endDate").value("2026-06-30"));
     }
 
     @Test
@@ -90,9 +79,10 @@ class BudgetControllerValidationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "categoryId": 1,
+                                  "categoryId": 2,
                                   "amount": 0,
-                                  "month": "2026-06"
+                                  "startDate": "2026-06-01",
+                                  "endDate": "2026-06-30"
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
@@ -102,100 +92,69 @@ class BudgetControllerValidationTests {
     }
 
     @Test
-    void createBudgetReturnsBadRequestForMissingCategoryId() throws Exception {
+    void createBudgetReturnsBadRequestForMissingRequiredFields() throws Exception {
         mockMvc.perform(post("/api/budgets")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "amount": 300.00,
-                                  "month": "2026-06"
+                                  "amount": 100.00
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.validationErrors.categoryId").exists());
+                .andExpect(jsonPath("$.validationErrors.categoryId").exists())
+                .andExpect(jsonPath("$.validationErrors.startDate").exists())
+                .andExpect(jsonPath("$.validationErrors.endDate").exists());
 
         verifyNoInteractions(budgetService);
     }
 
     @Test
-    void createBudgetReturnsBadRequestForMalformedMonth() throws Exception {
+    void createBudgetReturnsBadRequestForReversedDateRange() throws Exception {
+        BudgetRequest request = new BudgetRequest();
+        request.setCategoryId(2L);
+        request.setAmount(new BigDecimal("100.00"));
+        request.setStartDate(LocalDate.of(2026, 6, 30));
+        request.setEndDate(LocalDate.of(2026, 6, 1));
+        when(budgetService.createBudget(any(BudgetRequest.class)))
+                .thenThrow(new BadRequestException("startDate must be on or before endDate"));
+
         mockMvc.perform(post("/api/budgets")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "categoryId": 1,
-                                  "amount": 300.00,
-                                  "month": "2026/06"
+                                  "categoryId": 2,
+                                  "amount": 100.00,
+                                  "startDate": "2026-06-30",
+                                  "endDate": "2026-06-01"
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.validationErrors.month").exists());
-
-        verifyNoInteractions(budgetService);
+                .andExpect(jsonPath("$.message").value("startDate must be on or before endDate"));
     }
 
     @Test
-    void getBudgetsReturnsBadRequestForInvalidMonth() throws Exception {
-        when(budgetService.getBudgets("2026-13"))
-                .thenThrow(new BadRequestException("month must use YYYY-MM format"));
-
-        mockMvc.perform(get("/api/budgets")
-                        .param("month", "2026-13"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("month must use YYYY-MM format"));
-    }
-
-    @Test
-    void getBudgetsReturnsBadRequestForMissingMonth() throws Exception {
-        mockMvc.perform(get("/api/budgets"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.validationErrors.month").exists());
-
-        verifyNoInteractions(budgetService);
-    }
-
-    @Test
-    void getBudgetUsageReturnsUsageForMonth() throws Exception {
+    void getBudgetUsageReturnsExpectedResponse() throws Exception {
         BudgetUsageResponse response = new BudgetUsageResponse();
-        response.setMonth("2026-06");
-        response.setItems(List.of());
-        when(budgetUsageService.getBudgetUsage("2026-06")).thenReturn(response);
-
-        mockMvc.perform(get("/api/budgets/usage")
-                        .param("month", "2026-06"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.month").value("2026-06"))
-                .andExpect(jsonPath("$.items").isEmpty());
-    }
-
-    @Test
-    void getBudgetUsageReturnsBadRequestForMissingMonth() throws Exception {
-        mockMvc.perform(get("/api/budgets/usage"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.validationErrors.month").exists());
-
-        verifyNoInteractions(budgetUsageService);
-    }
-
-    @Test
-    void getBudgetUsageReturnsBadRequestForInvalidMonth() throws Exception {
-        when(budgetUsageService.getBudgetUsage("2026-13"))
-                .thenThrow(new BadRequestException("month must use YYYY-MM format"));
-
-        mockMvc.perform(get("/api/budgets/usage")
-                        .param("month", "2026-13"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("month must use YYYY-MM format"));
-    }
-
-    private BudgetResponse response() {
-        BudgetResponse response = new BudgetResponse();
-        response.setId(10L);
-        response.setCategoryId(1L);
+        response.setBudgetId(1L);
+        response.setCategoryId(2L);
         response.setCategoryName("Food");
-        response.setCategoryType(CategoryType.EXPENSE);
-        response.setAmount(new BigDecimal("300.00"));
-        response.setMonth("2026-06");
-        return response;
+        response.setLimitAmount(new BigDecimal("100.00"));
+        response.setSpentAmount(new BigDecimal("75.00"));
+        response.setRemainingAmount(new BigDecimal("25.00"));
+        response.setUsagePercentage(new BigDecimal("75.00"));
+        response.setExceeded(false);
+        response.setStartDate(LocalDate.of(2026, 6, 1));
+        response.setEndDate(LocalDate.of(2026, 6, 30));
+        when(budgetService.getBudgetUsage(1L)).thenReturn(response);
+
+        mockMvc.perform(get("/api/budgets/1/usage"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.budgetId").value(1))
+                .andExpect(jsonPath("$.categoryId").value(2))
+                .andExpect(jsonPath("$.limitAmount").value(100.00))
+                .andExpect(jsonPath("$.spentAmount").value(75.00))
+                .andExpect(jsonPath("$.remainingAmount").value(25.00))
+                .andExpect(jsonPath("$.usagePercentage").value(75.00))
+                .andExpect(jsonPath("$.exceeded").value(false));
     }
 }

@@ -69,20 +69,39 @@ export interface Budget {
   id: number;
   categoryId: number;
   categoryName: string;
-  categoryType: TransactionType;
   amount: string;
-  month: string;
+  startDate: string;
+  endDate: string;
 }
 
 export interface BudgetUsageItem {
+  budgetId: number;
   categoryId: number;
   categoryName: string;
-  budgetAmount: string;
+  limitAmount: string;
   spentAmount: string;
   remainingAmount: string;
-  usagePercent: string;
-  overBudget: boolean;
+  usagePercentage: string;
+  exceeded: boolean;
   status: BudgetUsageStatus;
+  startDate: string;
+  endDate: string;
+}
+
+export type RecurringFrequency = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
+
+export interface RecurringTransaction {
+  id: number;
+  type: TransactionType;
+  amount: string;
+  categoryId: number;
+  categoryName: string;
+  description?: string;
+  frequency: RecurringFrequency;
+  startDate: string;
+  endDate?: string;
+  nextRunDate: string;
+  active: boolean;
 }
 
 export interface MonthlyReportCategoryItem {

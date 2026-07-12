@@ -7,6 +7,8 @@ const links = [
   ["Categories", "/categories"],
   ["Budgets", "/budgets"],
   ["Monthly Report", "/reports/monthly"],
+  ["Recurring", "/recurring-transactions"],
+  ["Account", "/account"],
 ];
 
 export default function AppLayout() {

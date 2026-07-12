@@ -39,4 +39,19 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
 
         BigDecimal getSpentAmount();
     }
+
+    @Query("""
+            select coalesce(sum(t.amount), 0)
+            from Transaction t
+            where t.user.id = :userId
+              and t.category.id = :categoryId
+              and t.type = :type
+              and t.transactionDate between :startDate and :endDate
+            """)
+    BigDecimal sumAmountByUserIdAndCategoryIdAndTypeAndDateRange(
+            @Param("userId") Long userId,
+            @Param("categoryId") Long categoryId,
+            @Param("type") TransactionType type,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
 }

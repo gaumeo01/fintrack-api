@@ -2,16 +2,18 @@ package com.gmeo.finance_tracker.budget;
 
 import com.gmeo.finance_tracker.budget.dto.BudgetRequest;
 import com.gmeo.finance_tracker.budget.dto.BudgetResponse;
+import com.gmeo.finance_tracker.budget.dto.BudgetUsageResponse;
 import com.gmeo.finance_tracker.category.Category;
 import com.gmeo.finance_tracker.category.CategoryRepository;
 import com.gmeo.finance_tracker.category.enums.CategoryType;
 import com.gmeo.finance_tracker.common.exception.BadRequestException;
-import com.gmeo.finance_tracker.common.exception.DuplicateResourceException;
 import com.gmeo.finance_tracker.common.exception.ResourceNotFoundException;
-import com.gmeo.finance_tracker.common.util.DateTimeUtils;
 import com.gmeo.finance_tracker.security.CurrentUserService;
+import com.gmeo.finance_tracker.transaction.TransactionRepository;
+import com.gmeo.finance_tracker.transaction.enums.TransactionType;
 import com.gmeo.finance_tracker.user.User;
-import java.time.LocalDate;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
@@ -20,72 +22,59 @@ public class BudgetService {
 
     private final BudgetRepository budgetRepository;
     private final CategoryRepository categoryRepository;
+    private final TransactionRepository transactionRepository;
     private final CurrentUserService currentUserService;
 
     public BudgetService(
             BudgetRepository budgetRepository,
             CategoryRepository categoryRepository,
+            TransactionRepository transactionRepository,
             CurrentUserService currentUserService) {
         this.budgetRepository = budgetRepository;
         this.categoryRepository = categoryRepository;
+        this.transactionRepository = transactionRepository;
         this.currentUserService = currentUserService;
     }
 
     public BudgetResponse createBudget(BudgetRequest request) {
+        validateDateRange(request);
         User currentUser = currentUserService.getCurrentUser();
         Category category = findOwnedExpenseCategory(request.getCategoryId(), currentUser.getId());
-        LocalDate month = DateTimeUtils.parseMonthStart(request.getMonth());
-
-        if (budgetRepository.existsByUserIdAndCategoryIdAndMonth(currentUser.getId(), category.getId(), month)) {
-            throw new DuplicateResourceException("Budget already exists for this category and month");
-        }
 
         Budget budget = new Budget();
-        budget.setCategory(category);
         budget.setUser(currentUser);
+        budget.setCategory(category);
         budget.setAmount(request.getAmount());
-        budget.setMonth(month);
+        budget.setStartDate(request.getStartDate());
+        budget.setEndDate(request.getEndDate());
 
-        Budget savedBudget = budgetRepository.save(budget);
-        return mapToResponse(savedBudget);
+        return mapToResponse(budgetRepository.save(budget));
     }
 
-    public List<BudgetResponse> getBudgets(String month) {
+    public List<BudgetResponse> getAllBudgets() {
         User currentUser = currentUserService.getCurrentUser();
-        LocalDate budgetMonth = DateTimeUtils.parseMonthStart(month);
-
-        return budgetRepository.findAllByUserIdAndMonthOrderByCategoryNameAsc(currentUser.getId(), budgetMonth)
+        return budgetRepository.findAllByUserId(currentUser.getId())
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
     }
 
     public BudgetResponse getBudgetById(Long id) {
-        Budget budget = findOwnedBudget(id);
-
-        return mapToResponse(budget);
+        return mapToResponse(findOwnedBudget(id));
     }
 
     public BudgetResponse updateBudget(Long id, BudgetRequest request) {
+        validateDateRange(request);
         User currentUser = currentUserService.getCurrentUser();
         Budget budget = findOwnedBudget(id, currentUser.getId());
         Category category = findOwnedExpenseCategory(request.getCategoryId(), currentUser.getId());
-        LocalDate month = DateTimeUtils.parseMonthStart(request.getMonth());
-
-        if (budgetRepository.existsByUserIdAndCategoryIdAndMonthAndIdNot(
-                currentUser.getId(),
-                category.getId(),
-                month,
-                id)) {
-            throw new DuplicateResourceException("Budget already exists for this category and month");
-        }
 
         budget.setCategory(category);
         budget.setAmount(request.getAmount());
-        budget.setMonth(month);
+        budget.setStartDate(request.getStartDate());
+        budget.setEndDate(request.getEndDate());
 
-        Budget savedBudget = budgetRepository.save(budget);
-        return mapToResponse(savedBudget);
+        return mapToResponse(budgetRepository.save(budget));
     }
 
     public void deleteBudget(Long id) {
@@ -94,12 +83,61 @@ public class BudgetService {
         budgetRepository.delete(budget);
     }
 
+    public BudgetUsageResponse getBudgetUsage(Long id) {
+        User currentUser = currentUserService.getCurrentUser();
+        Budget budget = findOwnedBudget(id, currentUser.getId());
+        BigDecimal spentAmount = transactionRepository.sumAmountByUserIdAndCategoryIdAndTypeAndDateRange(
+                currentUser.getId(),
+                budget.getCategory().getId(),
+                TransactionType.EXPENSE,
+                budget.getStartDate(),
+                budget.getEndDate());
+        BigDecimal remainingAmount = budget.getAmount().subtract(spentAmount);
+        BigDecimal usagePercentage = spentAmount
+                .multiply(new BigDecimal("100"))
+                .divide(budget.getAmount(), 2, RoundingMode.HALF_UP);
+
+        BudgetUsageResponse response = new BudgetUsageResponse();
+        response.setBudgetId(budget.getId());
+        response.setCategoryId(budget.getCategory().getId());
+        response.setCategoryName(budget.getCategory().getName());
+        response.setLimitAmount(budget.getAmount());
+        response.setSpentAmount(spentAmount);
+        response.setRemainingAmount(remainingAmount);
+        response.setUsagePercentage(usagePercentage);
+        response.setStatus(resolveStatus(usagePercentage));
+        response.setExceeded(spentAmount.compareTo(budget.getAmount()) > 0);
+        response.setStartDate(budget.getStartDate());
+        response.setEndDate(budget.getEndDate());
+        return response;
+    }
+
+    private String resolveStatus(BigDecimal usagePercentage) {
+        if (usagePercentage.compareTo(new BigDecimal("100")) > 0) {
+            return "OVER_BUDGET";
+        }
+        if (usagePercentage.compareTo(new BigDecimal("80")) >= 0) {
+            return "WARNING";
+        }
+        return "SAFE";
+    }
+
+    private void validateDateRange(BudgetRequest request) {
+        if (request.getStartDate() != null
+                && request.getEndDate() != null
+                && request.getStartDate().isAfter(request.getEndDate())) {
+            throw new BadRequestException("startDate must be on or before endDate");
+        }
+    }
+
     private Category findOwnedExpenseCategory(Long categoryId, Long userId) {
         Category category = categoryRepository.findByIdAndUserId(categoryId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + categoryId));
+
         if (category.getType() != CategoryType.EXPENSE) {
-            throw new BadRequestException("Only EXPENSE categories can have budgets");
+            throw new BadRequestException("Budget category must be an EXPENSE category");
         }
+
         return category;
     }
 
@@ -117,9 +155,9 @@ public class BudgetService {
         response.setId(budget.getId());
         response.setCategoryId(budget.getCategory().getId());
         response.setCategoryName(budget.getCategory().getName());
-        response.setCategoryType(budget.getCategory().getType());
         response.setAmount(budget.getAmount());
-        response.setMonth(DateTimeUtils.formatMonth(budget.getMonth()));
+        response.setStartDate(budget.getStartDate());
+        response.setEndDate(budget.getEndDate());
         response.setCreatedAt(budget.getCreatedAt());
         response.setUpdatedAt(budget.getUpdatedAt());
         return response;

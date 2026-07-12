@@ -5,9 +5,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.gmeo.finance_tracker.account.AccountRepository;
 import com.gmeo.finance_tracker.auth.JwtService;
 import com.gmeo.finance_tracker.category.CategoryRepository;
-import com.gmeo.finance_tracker.recurring.RecurringTransactionRepository;
 import com.gmeo.finance_tracker.transaction.TransactionRepository;
 import com.gmeo.finance_tracker.user.User;
 import com.gmeo.finance_tracker.user.UserRepository;
@@ -35,16 +35,16 @@ class BudgetUsageFlowTests {
     private UserRepository userRepository;
 
     @Autowired
-    private BudgetRepository budgetRepository;
+    private AccountRepository accountRepository;
 
     @Autowired
-    private CategoryRepository categoryRepository;
+    private BudgetRepository budgetRepository;
 
     @Autowired
     private TransactionRepository transactionRepository;
 
     @Autowired
-    private RecurringTransactionRepository recurringTransactionRepository;
+    private CategoryRepository categoryRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -52,63 +52,67 @@ class BudgetUsageFlowTests {
     @Autowired
     private JwtService jwtService;
 
-    private String userAToken;
-    private String userBToken;
+    private String accessToken;
 
     @BeforeEach
     void setUp() {
         transactionRepository.deleteAll();
-        recurringTransactionRepository.deleteAll();
         budgetRepository.deleteAll();
+        accountRepository.deleteAll();
         categoryRepository.deleteAll();
         userRepository.deleteAll();
 
-        userAToken = createUserAndToken("budget-usage-a@example.com", "Budget Usage A");
-        userBToken = createUserAndToken("budget-usage-b@example.com", "Budget Usage B");
+        User user = new User();
+        user.setEmail("budget-flow@example.com");
+        user.setPasswordHash(passwordEncoder.encode("password123"));
+        user.setFullName("Budget Flow User");
+        user.setRole(UserRole.USER);
+        userRepository.save(user);
+
+        accessToken = jwtService.generateAccessToken(user.getEmail());
     }
 
     @Test
-    void returnsBudgetUsageForAuthenticatedUserFromExpenseTransactionsInSameCategoryAndMonth() throws Exception {
-        Long userAFoodCategoryId = createCategory(userAToken, "Food", "EXPENSE");
-        Long userASalaryCategoryId = createCategory(userAToken, "Salary", "INCOME");
-        Long userBFoodCategoryId = createCategory(userBToken, "Food", "EXPENSE");
-        createBudget(userAToken, userAFoodCategoryId, "300.00", "2026-06");
-        createBudget(userBToken, userBFoodCategoryId, "100.00", "2026-06");
+    void getBudgetUsageCalculatesFromOwnedExpenseTransactions() throws Exception {
+        Long categoryId = createCategory("Food", "EXPENSE");
+        Long otherCategoryId = createCategory("Transport", "EXPENSE");
+        Long budgetId = createBudget(categoryId, "100.00", "2026-06-01", "2026-06-30");
+        createTransaction(categoryId, "30.00", "2026-06-01");
+        createTransaction(categoryId, "45.50", "2026-06-30");
+        createTransaction(categoryId, "20.00", "2026-07-01");
+        createTransaction(otherCategoryId, "10.00", "2026-06-15");
 
-        createTransaction(userAToken, userAFoodCategoryId, "EXPENSE", "240.00", "2026-06-15");
-        createTransaction(userAToken, userASalaryCategoryId, "INCOME", "50.00", "2026-06-16");
-        createTransaction(userAToken, userAFoodCategoryId, "EXPENSE", "60.00", "2026-07-01");
-        createTransaction(userBToken, userBFoodCategoryId, "EXPENSE", "70.00", "2026-06-15");
-
-        mockMvc.perform(get("/api/budgets/usage")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(userAToken))
-                        .param("month", "2026-06"))
+        mockMvc.perform(get("/api/budgets/{id}/usage", budgetId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.month").value("2026-06"))
-                .andExpect(jsonPath("$.items.length()").value(1))
-                .andExpect(jsonPath("$.items[0].categoryId").value(userAFoodCategoryId))
-                .andExpect(jsonPath("$.items[0].categoryName").value("Food"))
-                .andExpect(jsonPath("$.items[0].budgetAmount").value(300.00))
-                .andExpect(jsonPath("$.items[0].spentAmount").value(240.00))
-                .andExpect(jsonPath("$.items[0].remainingAmount").value(60.00))
-                .andExpect(jsonPath("$.items[0].usagePercent").value(80.00))
-                .andExpect(jsonPath("$.items[0].overBudget").value(false))
-                .andExpect(jsonPath("$.items[0].status").value("WARNING"));
+                .andExpect(jsonPath("$.budgetId").value(budgetId))
+                .andExpect(jsonPath("$.categoryId").value(categoryId))
+                .andExpect(jsonPath("$.categoryName").value("Food"))
+                .andExpect(jsonPath("$.limitAmount").value(100.00))
+                .andExpect(jsonPath("$.spentAmount").value(75.50))
+                .andExpect(jsonPath("$.remainingAmount").value(24.50))
+                .andExpect(jsonPath("$.usagePercentage").value(75.50))
+                .andExpect(jsonPath("$.status").value("SAFE"))
+                .andExpect(jsonPath("$.exceeded").value(false))
+                .andExpect(jsonPath("$.startDate").value("2026-06-01"))
+                .andExpect(jsonPath("$.endDate").value("2026-06-30"));
     }
 
-    private String createUserAndToken(String email, String fullName) {
-        User user = new User();
-        user.setEmail(email);
-        user.setPasswordHash(passwordEncoder.encode("password123"));
-        user.setFullName(fullName);
-        user.setRole(UserRole.USER);
-        userRepository.save(user);
-        return jwtService.generateAccessToken(email);
+    @Test
+    void createBudgetRejectsIncomeCategory() throws Exception {
+        Long categoryId = createCategory("Salary", "INCOME");
+
+        mockMvc.perform(post("/api/budgets")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(budgetJson(categoryId, "100.00", "2026-06-01", "2026-06-30")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Budget category must be an EXPENSE category"));
     }
 
-    private Long createCategory(String token, String name, String type) throws Exception {
+    private Long createCategory(String name, String type) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/categories")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                        .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -122,39 +126,50 @@ class BudgetUsageFlowTests {
         return ((Number) JsonPath.read(result.getResponse().getContentAsString(), "$.id")).longValue();
     }
 
-    private void createBudget(String token, Long categoryId, String amount, String month) throws Exception {
-        mockMvc.perform(post("/api/budgets")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(token))
+    private Long createBudget(
+            Long categoryId,
+            String amount,
+            String startDate,
+            String endDate) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/budgets")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(budgetJson(categoryId, amount, startDate, endDate)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        return ((Number) JsonPath.read(result.getResponse().getContentAsString(), "$.id")).longValue();
+    }
+
+    private void createTransaction(Long categoryId, String amount, String transactionDate) throws Exception {
+        mockMvc.perform(post("/api/transactions")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "categoryId": %d,
+                                  "type": "EXPENSE",
                                   "amount": %s,
-                                  "month": "%s"
+                                  "categoryId": %d,
+                                  "description": "Budget usage",
+                                  "transactionDate": "%s"
                                 }
-                                """.formatted(categoryId, amount, month)))
+                                """.formatted(amount, categoryId, transactionDate)))
                 .andExpect(status().isCreated());
     }
 
-    private void createTransaction(
-            String token,
+    private String budgetJson(
             Long categoryId,
-            String type,
             String amount,
-            String transactionDate) throws Exception {
-        mockMvc.perform(post("/api/transactions")
-                        .header(HttpHeaders.AUTHORIZATION, bearer(token))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "type": "%s",
-                                  "amount": %s,
-                                  "categoryId": %d,
-                                  "description": "Budget usage fixture",
-                                  "transactionDate": "%s"
-                                }
-                                """.formatted(type, amount, categoryId, transactionDate)))
-                .andExpect(status().isCreated());
+            String startDate,
+            String endDate) {
+        return """
+                {
+                  "categoryId": %d,
+                  "amount": %s,
+                  "startDate": "%s",
+                  "endDate": "%s"
+                }
+                """.formatted(categoryId, amount, startDate, endDate);
     }
 
     private String bearer(String token) {

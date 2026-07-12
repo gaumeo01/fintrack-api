@@ -37,6 +37,7 @@ public class RecurringTransactionService {
     }
 
     public RecurringTransactionResponse createRecurringTransaction(RecurringTransactionRequest request) {
+        validateDateRange(request);
         User currentUser = currentUserService.getCurrentUser();
         Category category = findOwnedCategory(request.getCategoryId(), currentUser.getId());
         validateCategoryType(category, request);
@@ -63,6 +64,7 @@ public class RecurringTransactionService {
     }
 
     public RecurringTransactionResponse updateRecurringTransaction(Long id, RecurringTransactionRequest request) {
+        validateDateRange(request);
         User currentUser = currentUserService.getCurrentUser();
         RecurringTransaction recurringTransaction = findOwnedRecurringTransaction(id, currentUser.getId());
         Category category = findOwnedCategory(request.getCategoryId(), currentUser.getId());
@@ -146,6 +148,14 @@ public class RecurringTransactionService {
     private void validateCategoryType(Category category, RecurringTransactionRequest request) {
         if (!category.getType().name().equals(request.getType().name())) {
             throw new BadRequestException("Category type must match transaction type");
+        }
+    }
+
+    private void validateDateRange(RecurringTransactionRequest request) {
+        if (request.getStartDate() != null
+                && request.getEndDate() != null
+                && request.getStartDate().isAfter(request.getEndDate())) {
+            throw new BadRequestException("startDate must be on or before endDate");
         }
     }
 

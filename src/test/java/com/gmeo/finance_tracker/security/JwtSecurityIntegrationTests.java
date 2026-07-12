@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.gmeo.finance_tracker.auth.JwtService;
+import com.gmeo.finance_tracker.account.AccountRepository;
 import com.gmeo.finance_tracker.budget.BudgetRepository;
 import com.gmeo.finance_tracker.category.CategoryRepository;
 import com.gmeo.finance_tracker.recurring.RecurringTransactionRepository;
@@ -35,6 +36,9 @@ class JwtSecurityIntegrationTests {
     private UserRepository userRepository;
 
     @Autowired
+    private AccountRepository accountRepository;
+
+    @Autowired
     private TransactionRepository transactionRepository;
 
     @Autowired
@@ -57,6 +61,7 @@ class JwtSecurityIntegrationTests {
         transactionRepository.deleteAll();
         recurringTransactionRepository.deleteAll();
         budgetRepository.deleteAll();
+        accountRepository.deleteAll();
         categoryRepository.deleteAll();
         userRepository.deleteAll();
 
@@ -127,6 +132,12 @@ class JwtSecurityIntegrationTests {
     void budgetsWithoutTokenReturnsUnauthorized() throws Exception {
         mockMvc.perform(get("/api/budgets")
                         .param("month", "2026-06"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void accountsWithoutTokenReturnsUnauthorized() throws Exception {
+        mockMvc.perform(get("/api/accounts"))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -218,8 +229,7 @@ class JwtSecurityIntegrationTests {
 
     @Test
     void budgetUsageWithoutTokenReturnsUnauthorized() throws Exception {
-        mockMvc.perform(get("/api/budgets/usage")
-                        .param("month", "2026-06"))
+        mockMvc.perform(get("/api/budgets/1/usage"))
                 .andExpect(status().isUnauthorized());
     }
 

@@ -5,7 +5,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-// TODO: Use this later for standardized success responses.
 @Getter
 @Setter
 @NoArgsConstructor

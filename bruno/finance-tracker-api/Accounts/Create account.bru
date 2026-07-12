@@ -1,11 +1,11 @@
 meta {
-  name: Create budget
+  name: Create account
   type: http
   seq: 1
 }
 
 post {
-  url: {{baseUrl}}/api/budgets
+  url: {{baseUrl}}/api/accounts
   body: json
   auth: none
 }
@@ -17,9 +17,8 @@ headers {
 
 body:json {
   {
-    "categoryId": {{categoryId}},
-    "amount": 3000000.00,
-    "startDate": "{{fromDate}}",
-    "endDate": "{{toDate}}"
+    "name": "Cash Wallet",
+    "type": "CASH",
+    "initialBalance": 1000000.00
   }
 }
