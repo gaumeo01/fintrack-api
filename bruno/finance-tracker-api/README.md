@@ -23,6 +23,10 @@ This Bruno collection contains example requests for manually testing the Finance
 - `recurringTransactionId` is used by recurring transaction detail, update, delete, and generate requests.
 - `currentPassword` and `newPassword` are placeholders for **Account / Change password**.
 
+## Budget API Note
+
+Budgets use the date-range API: `GET /api/budgets`, `POST /api/budgets`, `GET /api/budgets/{id}`, `PUT /api/budgets/{id}`, `DELETE /api/budgets/{id}`, and `GET /api/budgets/{id}/usage`. The older month query endpoints are not used by this collection. Usage responses include `limitAmount`, `usagePercentage`, and `status` values of `SAFE`, `WARNING`, or `OVER_BUDGET`.
+
 ## New Requests
 
 - **Transactions / Search transactions by keyword** searches transaction descriptions and category names.

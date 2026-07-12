@@ -3,15 +3,15 @@ services:
     image: postgres:16
     container_name: fintrack-postgres
     environment:
-      POSTGRES_DB: fintrack_db
-      POSTGRES_USER: fintrack_user
-      POSTGRES_PASSWORD: fintrack_password
+      POSTGRES_DB: ${POSTGRES_DB:-fintrack_db}
+      POSTGRES_USER: ${POSTGRES_USER:-fintrack_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fintrack_password}
     ports:
       - "5433:5432"
     volumes:
       - fintrack_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U fintrack_user -d fintrack_db"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-fintrack_user} -d $${POSTGRES_DB:-fintrack_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -23,11 +23,11 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/fintrack_db
-      SPRING_DATASOURCE_USERNAME: fintrack_user
-      SPRING_DATASOURCE_PASSWORD: fintrack_password
-      APP_JWT_SECRET: local-development-secret-change-me-at-least-32-chars
-      APP_JWT_ACCESS_TOKEN_EXPIRATION_MS: 3600000
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-fintrack_db}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-fintrack_user}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-fintrack_password}
+      APP_JWT_SECRET: ${APP_JWT_SECRET:-local-development-secret-change-me-at-least-32-chars}
+      APP_JWT_ACCESS_TOKEN_EXPIRATION_MS: ${APP_JWT_ACCESS_TOKEN_EXPIRATION_MS:-3600000}
     ports:
       - "8080:8080"
 

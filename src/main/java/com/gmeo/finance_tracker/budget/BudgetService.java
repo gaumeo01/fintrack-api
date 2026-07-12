@@ -105,10 +105,21 @@ public class BudgetService {
         response.setSpentAmount(spentAmount);
         response.setRemainingAmount(remainingAmount);
         response.setUsagePercentage(usagePercentage);
+        response.setStatus(resolveStatus(usagePercentage));
         response.setExceeded(spentAmount.compareTo(budget.getAmount()) > 0);
         response.setStartDate(budget.getStartDate());
         response.setEndDate(budget.getEndDate());
         return response;
+    }
+
+    private String resolveStatus(BigDecimal usagePercentage) {
+        if (usagePercentage.compareTo(new BigDecimal("100")) > 0) {
+            return "OVER_BUDGET";
+        }
+        if (usagePercentage.compareTo(new BigDecimal("80")) >= 0) {
+            return "WARNING";
+        }
+        return "SAFE";
     }
 
     private void validateDateRange(BudgetRequest request) {

@@ -92,6 +92,7 @@ class BudgetUsageFlowTests {
                 .andExpect(jsonPath("$.spentAmount").value(75.50))
                 .andExpect(jsonPath("$.remainingAmount").value(24.50))
                 .andExpect(jsonPath("$.usagePercentage").value(75.50))
+                .andExpect(jsonPath("$.status").value("SAFE"))
                 .andExpect(jsonPath("$.exceeded").value(false))
                 .andExpect(jsonPath("$.startDate").value("2026-06-01"))
                 .andExpect(jsonPath("$.endDate").value("2026-06-30"));

@@ -67,14 +67,19 @@ Tests live under `src/test/java/com/gmeo/finance_tracker`.
 | --- | --- | --- | --- |
 | `APP_JWT_SECRET` | Yes, outside tests | None | Secret key used to sign JWT access tokens. Use a long random value. |
 | `APP_JWT_ACCESS_TOKEN_EXPIRATION_MS` | No | `3600000` | Access token lifetime in milliseconds. |
+| `SPRING_DATASOURCE_URL` | No | `jdbc:postgresql://localhost:5433/fintrack_db` | PostgreSQL JDBC URL. |
+| `SPRING_DATASOURCE_USERNAME` | No | `fintrack_user` | PostgreSQL user. |
+| `SPRING_DATASOURCE_PASSWORD` | No | `fintrack_password` | PostgreSQL password for local development. |
+| `SPRING_JPA_SHOW_SQL` | No | `false` | Enables SQL logging when set to `true`. |
+| `POSTGRES_DB` | No | `fintrack_db` | Docker Compose database name. |
+| `POSTGRES_USER` | No | `fintrack_user` | Docker Compose database user. |
+| `POSTGRES_PASSWORD` | No | `fintrack_password` | Docker Compose database password. |
 
-The local PostgreSQL settings are currently configured in `src/main/resources/application.properties`:
+Copy `.env.example` when you want Docker Compose or shell-based local overrides:
 
-| Property | Value |
-| --- | --- |
-| Database URL | `jdbc:postgresql://localhost:5433/fintrack_db` |
-| Username | `fintrack_user` |
-| Password | `fintrack_password` |
+```bash
+cp .env.example .env
+```
 
 Tests use `src/test/resources/application.properties` and run against an in-memory H2 database, so `APP_JWT_SECRET` is not required for tests.
 
@@ -115,6 +120,8 @@ sh mvnw test
 ## Frontend
 
 The React frontend lives in `frontend/`.
+
+It includes protected pages for authentication, dashboard analytics, transactions, categories, budgets, monthly reports, recurring transactions, and account password changes.
 
 ```bash
 cd frontend
@@ -269,6 +276,8 @@ Budget rules:
 - Budget usage responses use `limitAmount`.
 - Budget usage counts authenticated-user `EXPENSE` transactions in the same category and inclusive budget date range.
 - Budget usage calculates `remainingAmount` and `usagePercentage` with `BigDecimal`.
+- Budget usage status is `SAFE` below 80%, `WARNING` from 80% through 100%, and `OVER_BUDGET` above 100%.
+- The older month-based budget API (`GET /api/budgets?month=...` and `GET /api/budgets/usage?month=...`) is no longer part of the frontend contract.
 
 ### Recurring Transactions
 
@@ -528,6 +537,7 @@ Response:
   "spentAmount": 2400000.00,
   "remainingAmount": 600000.00,
   "usagePercentage": 80.00,
+  "status": "WARNING",
   "exceeded": false,
   "startDate": "2026-06-01",
   "endDate": "2026-06-30"

@@ -26,6 +26,9 @@
 - Monthly report API
 - Recurring transaction CRUD and manual generation
 - Recurring transaction date range validation
+- React frontend for auth, dashboard, transactions, categories, budgets, reports, recurring transactions, and account password changes
+- Budget usage status values: `SAFE`, `WARNING`, and `OVER_BUDGET`
+- GitHub Actions CI for backend tests and frontend build
 - Unit and integration test coverage for auth, validation, filtering, and user isolation
 - README backend setup documentation
 
@@ -43,8 +46,6 @@
 
 ## Planned / Not Present In Current Code Snapshot
 
-- Frontend budget UI
-- Frontend account UI
 - Budget alerts/notifications
 - Link transactions to accounts
 - Scheduled recurring transaction generation
@@ -58,4 +59,4 @@
 - Budgets must use an `EXPENSE` category owned by the authenticated user.
 - Recurring transactions must use a category owned by the authenticated user and `startDate` must be on or before `endDate` when provided.
 - Budget usage is calculated from matching authenticated-user `EXPENSE` transactions in the inclusive budget date range.
-- The latest verified full test run passed `166` tests.
+- Budget usage status is `SAFE` below 80%, `WARNING` from 80% through 100%, and `OVER_BUDGET` above 100%.

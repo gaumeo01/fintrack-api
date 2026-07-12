@@ -16,6 +16,7 @@ public class BudgetUsageResponse {
     private BigDecimal spentAmount;
     private BigDecimal remainingAmount;
     private BigDecimal usagePercentage;
+    private String status;
     private boolean exceeded;
     private LocalDate startDate;
     private LocalDate endDate;

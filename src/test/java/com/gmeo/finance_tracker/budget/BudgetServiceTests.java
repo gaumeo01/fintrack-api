@@ -204,7 +204,35 @@ class BudgetServiceTests {
         assertThat(response.getSpentAmount()).isEqualByComparingTo("125.50");
         assertThat(response.getRemainingAmount()).isEqualByComparingTo("-25.50");
         assertThat(response.getUsagePercentage()).isEqualByComparingTo("125.50");
+        assertThat(response.getStatus()).isEqualTo("OVER_BUDGET");
         assertThat(response.isExceeded()).isTrue();
+    }
+
+    @Test
+    void usageStatusIsSafeWhenSpendingIsBelowWarningThreshold() {
+        when(budgetRepository.findByIdAndUserId(10L, 7L)).thenReturn(Optional.of(budget(10L)));
+        when(transactionRepository.sumAmountByUserIdAndCategoryIdAndTypeAndDateRange(
+                7L, 1L, TransactionType.EXPENSE, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 30)))
+                .thenReturn(new BigDecimal("0.00"));
+
+        BudgetUsageResponse response = budgetService.getBudgetUsage(10L);
+
+        assertThat(response.getUsagePercentage()).isEqualByComparingTo("0.00");
+        assertThat(response.getStatus()).isEqualTo("SAFE");
+    }
+
+    @Test
+    void usageStatusIsWarningAtTheLimit() {
+        when(budgetRepository.findByIdAndUserId(10L, 7L)).thenReturn(Optional.of(budget(10L)));
+        when(transactionRepository.sumAmountByUserIdAndCategoryIdAndTypeAndDateRange(
+                7L, 1L, TransactionType.EXPENSE, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 30)))
+                .thenReturn(new BigDecimal("100.00"));
+
+        BudgetUsageResponse response = budgetService.getBudgetUsage(10L);
+
+        assertThat(response.getUsagePercentage()).isEqualByComparingTo("100.00");
+        assertThat(response.getStatus()).isEqualTo("WARNING");
+        assertThat(response.isExceeded()).isFalse();
     }
 
     private void verifyNoCategoryLookupOrSave() {
