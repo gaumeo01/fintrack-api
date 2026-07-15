@@ -67,6 +67,7 @@ Tests live under `src/test/java/com/gmeo/finance_tracker`.
 | --- | --- | --- | --- |
 | `APP_JWT_SECRET` | Yes, outside tests | None | Secret key used to sign JWT access tokens. Use a long random value. |
 | `APP_JWT_ACCESS_TOKEN_EXPIRATION_MS` | No | `3600000` | Access token lifetime in milliseconds. |
+| `APP_CORS_ALLOWED_ORIGINS` | No | `http://localhost:5173,http://127.0.0.1:5173` | Comma-separated browser origins allowed to call the API. |
 | `SPRING_DATASOURCE_URL` | No | `jdbc:postgresql://localhost:5433/fintrack_db` | PostgreSQL JDBC URL. |
 | `SPRING_DATASOURCE_USERNAME` | No | `fintrack_user` | PostgreSQL user. |
 | `SPRING_DATASOURCE_PASSWORD` | No | `fintrack_password` | PostgreSQL password for local development. |
