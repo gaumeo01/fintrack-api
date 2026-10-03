@@ -13,6 +13,8 @@ import lombok.Setter;
 public class TransactionResponse {
 
     private Long id;
+    private Long recurringId;
+    private java.time.LocalDate occurrenceDate;
     private TransactionType type;
     private BigDecimal amount;
     private Long categoryId;

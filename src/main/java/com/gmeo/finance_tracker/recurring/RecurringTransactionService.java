@@ -18,6 +18,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 @Service
+@org.springframework.transaction.annotation.Transactional
 public class RecurringTransactionService {
 
     private final RecurringTransactionRepository recurringTransactionRepository;
@@ -37,6 +38,7 @@ public class RecurringTransactionService {
     }
 
     public RecurringTransactionResponse createRecurringTransaction(RecurringTransactionRequest request) {
+        com.gmeo.finance_tracker.common.validation.RequestValidation.validate(request);
         validateDateRange(request);
         User currentUser = currentUserService.getCurrentUser();
         Category category = findOwnedCategory(request.getCategoryId(), currentUser.getId());
@@ -64,12 +66,23 @@ public class RecurringTransactionService {
     }
 
     public RecurringTransactionResponse updateRecurringTransaction(Long id, RecurringTransactionRequest request) {
+        com.gmeo.finance_tracker.common.validation.RequestValidation.validate(request);
         validateDateRange(request);
         User currentUser = currentUserService.getCurrentUser();
-        RecurringTransaction recurringTransaction = findOwnedRecurringTransaction(id, currentUser.getId());
+        RecurringTransaction recurringTransaction = findLocked(id, currentUser.getId());
         Category category = findOwnedCategory(request.getCategoryId(), currentUser.getId());
         validateCategoryType(category, request);
 
+        boolean rescheduled = !recurringTransaction.getStartDate().equals(request.getStartDate())
+                || recurringTransaction.getFrequency() != request.getFrequency();
+        if (rescheduled) {
+            LocalDate next = request.getStartDate();
+            LocalDate last = recurringTransaction.getLastGeneratedDate();
+            if (last != null && !next.isAfter(last)) {
+                throw new BadRequestException("Rescheduled startDate must be after the last generated occurrence");
+            }
+            recurringTransaction.setNextRunDate(next);
+        }
         applyRequest(recurringTransaction, request, category);
         if (request.getActive() != null) {
             recurringTransaction.setActive(request.getActive());
@@ -79,11 +92,23 @@ public class RecurringTransactionService {
     }
 
     public void deleteRecurringTransaction(Long id) {
-        recurringTransactionRepository.delete(findOwnedRecurringTransaction(id));
+        recurringTransactionRepository.delete(findLocked(id, currentUserService.getCurrentUser().getId()));
     }
 
     public RecurringTransactionGenerateResponse generateTransaction(Long id) {
-        RecurringTransaction recurringTransaction = findOwnedRecurringTransaction(id);
+        return generateTransaction(id, null);
+    }
+
+    public RecurringTransactionGenerateResponse generateTransaction(Long id, LocalDate occurrenceDate) {
+        RecurringTransaction recurringTransaction = findLocked(id, currentUserService.getCurrentUser().getId());
+        if (occurrenceDate != null) {
+            var previous = transactionRepository.findByRecurringIdAndOccurrenceDate(id, occurrenceDate);
+            if (previous.isPresent()) return new RecurringTransactionGenerateResponse(
+                    mapTransactionToResponse(previous.get()), recurringTransaction.getNextRunDate());
+            if (!occurrenceDate.equals(recurringTransaction.getNextRunDate())) {
+                throw new BadRequestException("occurrenceDate must match nextRunDate");
+            }
+        }
 
         if (!recurringTransaction.isActive()) {
             throw new BadRequestException("Recurring transaction is inactive");
@@ -100,6 +125,8 @@ public class RecurringTransactionService {
         }
 
         Transaction transaction = new Transaction();
+        transaction.setRecurringId(id);
+        transaction.setOccurrenceDate(recurringTransaction.getNextRunDate());
         transaction.setUser(recurringTransaction.getUser());
         transaction.setType(recurringTransaction.getType());
         transaction.setAmount(recurringTransaction.getAmount());
@@ -108,6 +135,7 @@ public class RecurringTransactionService {
         transaction.setTransactionDate(recurringTransaction.getNextRunDate());
 
         Transaction savedTransaction = transactionRepository.save(transaction);
+        recurringTransaction.setLastGeneratedDate(recurringTransaction.getNextRunDate());
         recurringTransaction.setNextRunDate(nextDate(
                 recurringTransaction.getNextRunDate(),
                 recurringTransaction.getFrequency()));
@@ -129,6 +157,11 @@ public class RecurringTransactionService {
         recurringTransaction.setFrequency(request.getFrequency());
         recurringTransaction.setStartDate(request.getStartDate());
         recurringTransaction.setEndDate(request.getEndDate());
+    }
+
+    private RecurringTransaction findLocked(Long id, Long userId) {
+        return recurringTransactionRepository.findLockedByIdAndUserId(id, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Recurring transaction not found with id: " + id));
     }
 
     private Category findOwnedCategory(Long categoryId, Long userId) {
@@ -190,6 +223,8 @@ public class RecurringTransactionService {
     private TransactionResponse mapTransactionToResponse(Transaction transaction) {
         TransactionResponse response = new TransactionResponse();
         response.setId(transaction.getId());
+        response.setRecurringId(transaction.getRecurringId());
+        response.setOccurrenceDate(transaction.getOccurrenceDate());
         response.setType(transaction.getType());
         response.setAmount(transaction.getAmount());
         response.setCategoryId(transaction.getCategory().getId());

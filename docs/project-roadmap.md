@@ -28,7 +28,13 @@
 - Recurring transaction date range validation
 - React frontend for auth, dashboard, transactions, categories, budgets, reports, recurring transactions, and account password changes
 - Budget usage status values: `SAFE`, `WARNING`, and `OVER_BUDGET`
-- GitHub Actions CI for backend tests and frontend build
+- Flyway schema baseline and legacy budget date-range upgrade
+- Database-enforced recurring occurrence identity, atomic generation and safe keyed retries
+- CSV validation, retry identities and spreadsheet-safe export
+- Frontend date/session/precision regression tests and core browser journeys
+- PostgreSQL migration, concurrency, uniqueness and rollback integration tests
+- Non-root production images, health checks and deployment/recovery guidance
+- GitHub Actions CI for backend/PostgreSQL/frontend/browser tests, builds and image verification
 - Unit and integration test coverage for auth, validation, filtering, and user isolation
 - README backend setup documentation
 

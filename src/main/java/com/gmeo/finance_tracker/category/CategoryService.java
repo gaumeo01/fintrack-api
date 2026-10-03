@@ -46,8 +46,11 @@ public class CategoryService {
     public CategoryResponse updateCategory(Long id, CategoryRequest request) {
         Category category = findOwnedCategory(id);
 
+        if (category.getType() != request.getType()) {
+            throw new com.gmeo.finance_tracker.common.exception.BadRequestException(
+                    "Category type is immutable; create a new category instead");
+        }
         category.setName(request.getName());
-        category.setType(request.getType());
 
         Category savedCategory = categoryRepository.save(category);
         return mapToResponse(savedCategory);

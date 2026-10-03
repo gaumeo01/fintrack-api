@@ -202,6 +202,16 @@ class TransactionServiceTests {
     }
 
     @Test
+    void exportNeutralizesSpreadsheetFormulas() {
+        Category category = new Category(); category.setId(1L); category.setName("=HYPERLINK(1)");
+        Transaction transaction = new Transaction(); transaction.setCategory(category);
+        transaction.setDescription("  @SUM(1)");
+        when(transactionRepository.findAll(Mockito.<Specification<Transaction>>any(), any(Sort.class))).thenReturn(List.of(transaction));
+        String csv = transactionService.exportTransactions(null, null, null, null, null, null, null);
+        assertThat(csv).contains("'=HYPERLINK(1)").contains("'  @SUM(1)");
+    }
+
+    @Test
     void exportTransactionsReturnsOnlyHeaderWhenNoTransactionsMatch() {
         when(transactionRepository.findAll(Mockito.<Specification<Transaction>>any(), any(Sort.class)))
                 .thenReturn(List.of());

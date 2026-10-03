@@ -25,12 +25,24 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "transactions")
+@Table(name = "transactions", uniqueConstraints = {
+        @jakarta.persistence.UniqueConstraint(name = "uk_recurring_occurrence", columnNames = {"recurring_id", "occurrence_date"}),
+        @jakarta.persistence.UniqueConstraint(name = "uk_import_row", columnNames = {"user_id", "import_key"})})
 public class Transaction {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    // Scalar identity intentionally survives deletion of the recurring template.
+    @Column(updatable = false)
+    private Long recurringId;
+
+    @Column(length = 80, updatable = false)
+    private String importKey;
+
+    @Column(updatable = false)
+    private LocalDate occurrenceDate;
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)

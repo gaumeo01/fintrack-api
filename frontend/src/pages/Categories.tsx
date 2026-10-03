@@ -50,7 +50,7 @@ export default function Categories() {
       {error && <p className="rounded-md bg-coral/10 p-3 text-sm text-coral">{error}</p>}
       <form className="panel grid gap-3 md:grid-cols-4" onSubmit={submit}>
         <input placeholder="Category name" value={name} onChange={(event) => setName(event.target.value)} />
-        <select value={type} onChange={(event) => setType(event.target.value as TransactionType)}>
+        <select disabled={editingId !== null} title={editingId ? "Category type cannot be changed" : undefined} value={type} onChange={(event) => setType(event.target.value as TransactionType)}>
           <option value="EXPENSE">Expense</option>
           <option value="INCOME">Income</option>
         </select>

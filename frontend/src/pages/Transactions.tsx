@@ -1,14 +1,15 @@
+import { today } from "../lib/dates";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { api, errorMessage } from "../api/client";
 import type { Category, ImportResult, PageResponse, Transaction, TransactionType } from "../types/api";
 
-const emptyForm = {
+const emptyForm = () => ({
   type: "EXPENSE" as TransactionType,
   amount: "",
   categoryId: "",
   description: "",
-  transactionDate: new Date().toISOString().slice(0, 10),
-};
+  transactionDate: today(),
+});
 
 export default function Transactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -81,7 +82,7 @@ export default function Transactions() {
         await api.post("/api/transactions", payload);
         setMessage("Transaction created.");
       }
-      setForm(emptyForm);
+      setForm(emptyForm());
       setEditingId(null);
       await loadTransactions(0);
     } catch (err) {

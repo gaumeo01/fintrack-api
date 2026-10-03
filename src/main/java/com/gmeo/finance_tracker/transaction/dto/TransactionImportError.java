@@ -9,4 +9,6 @@ public class TransactionImportError {
 
     private int rowNumber;
     private String message;
+
+    public String getCode() { return "INVALID_ROW"; }
 }

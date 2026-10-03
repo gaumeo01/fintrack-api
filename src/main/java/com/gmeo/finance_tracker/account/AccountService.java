@@ -21,6 +21,7 @@ public class AccountService {
     }
 
     public AccountResponse createAccount(AccountRequest request) {
+        com.gmeo.finance_tracker.common.validation.RequestValidation.validate(request);
         Account account = new Account();
         account.setUser(currentUserService.getCurrentUser());
         applyRequest(account, request);
@@ -41,6 +42,7 @@ public class AccountService {
     }
 
     public AccountResponse updateAccount(Long id, AccountRequest request) {
+        com.gmeo.finance_tracker.common.validation.RequestValidation.validate(request);
         Account account = findOwnedAccount(id);
         applyRequest(account, request);
 

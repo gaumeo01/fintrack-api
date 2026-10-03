@@ -34,7 +34,9 @@ public class AuthService {
     }
 
     public UserResponse register(RegisterRequest request) {
-        String normalizedEmail = request.getEmail().trim().toLowerCase();
+        if (request.getEmail() != null) request.setEmail(request.getEmail().trim());
+        com.gmeo.finance_tracker.common.validation.RequestValidation.validate(request);
+        String normalizedEmail = request.getEmail().trim().toLowerCase(java.util.Locale.ROOT);
 
         if (userRepository.existsByEmail(normalizedEmail)) {
             throw new DuplicateResourceException("Email is already registered");
@@ -51,7 +53,7 @@ public class AuthService {
     }
 
     public LoginResponse login(LoginRequest request) {
-        String normalizedEmail = request.getEmail().trim().toLowerCase();
+        String normalizedEmail = request.getEmail().trim().toLowerCase(java.util.Locale.ROOT);
 
         User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new InvalidCredentialsException("Invalid email or password"));
@@ -68,9 +70,10 @@ public class AuthService {
     }
 
     public UserResponse changePassword(ChangePasswordRequest request) {
+        com.gmeo.finance_tracker.common.validation.RequestValidation.validate(request);
         User currentUser = currentUserService.getCurrentUser();
         if (!passwordEncoder.matches(request.getCurrentPassword(), currentUser.getPasswordHash())) {
-            throw new InvalidCredentialsException("Current password is incorrect");
+            throw new InvalidCredentialsException("Current password is incorrect", "INVALID_CURRENT_PASSWORD");
         }
 
         currentUser.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));

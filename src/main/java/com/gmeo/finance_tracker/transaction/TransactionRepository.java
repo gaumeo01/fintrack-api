@@ -11,6 +11,10 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface TransactionRepository extends JpaRepository<Transaction, Long>, JpaSpecificationExecutor<Transaction> {
+    boolean existsByUserIdAndImportKey(Long userId, String importKey);
+
+    Optional<Transaction> findByRecurringIdAndOccurrenceDate(Long recurringId, java.time.LocalDate occurrenceDate);
+
 
     List<Transaction> findAllByUserId(Long userId);
 

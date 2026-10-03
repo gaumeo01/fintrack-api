@@ -55,6 +55,12 @@ src/main/java/com/gmeo/finance_tracker
 
 Tests live under `src/test/java/com/gmeo/finance_tracker`.
 
+## Production hardening and compatibility
+
+Read [API correctness contracts](docs/contracts.md) for date, money, password, category, recurring and CSV behavior. Read [deployment, migration and backup instructions](docs/operations.md) before upgrading an existing database. Schema changes now use Flyway; existing installations require explicit baseline adoption after a backup/rehearsal.
+
+The production deployment is `docker compose -f compose.prod.yml up -d --build` with injected secrets. Local Compose remains separate. Core verification includes PostgreSQL migration/concurrency/rollback tests, frontend behavior tests, real-browser journeys and both production image builds.
+
 ## Requirements
 
 - Java 21
@@ -82,14 +88,14 @@ Copy `.env.example` when you want Docker Compose or shell-based local overrides:
 cp .env.example .env
 ```
 
-Tests use `src/test/resources/application.properties` and run against an in-memory H2 database, so `APP_JWT_SECRET` is not required for tests.
+Fast tests use H2 and a test-only JWT secret. PostgreSQL integration tests run when `FINTRACK_TEST_DB_URL` and `FINTRACK_TEST_DB_PASSWORD` are supplied; see [verification setup](docs/operations.md#verification). CI runs both.
 
 ## Run With Docker Compose
 
-The included `docker-compose.yml` starts PostgreSQL only. Run the database first, then start the Spring Boot app from your machine.
+The included `docker-compose.yml` defines PostgreSQL and the API with development-only credentials. To run only the database and start the API on your machine:
 
 ```bash
-docker compose up -d
+docker compose up -d postgres
 ```
 
 Set the JWT secret:
@@ -115,7 +121,7 @@ docker compose down
 ## Run Tests
 
 ```bash
-sh mvnw test
+sh mvnw verify
 ```
 
 ## Frontend
@@ -271,7 +277,7 @@ Budget rules:
 - Only `EXPENSE` categories can have budgets.
 - Cross-user budget access returns `404 Not Found`.
 - `categoryId`, `amount`, `startDate`, and `endDate` are required.
-- `amount` must be at least `0.01`.
+- `amount` must be at least `0.01`, with at most 17 integer digits and 2 fractional digits.
 - `startDate` must be on or before `endDate`.
 - Budget CRUD responses use `amount`.
 - Budget usage responses use `limitAmount`.
@@ -289,7 +295,7 @@ Budget rules:
 | `GET` | `/api/recurring-transactions/{id}` | JWT | Get one owned recurring transaction. |
 | `PUT` | `/api/recurring-transactions/{id}` | JWT | Update one owned recurring transaction. |
 | `DELETE` | `/api/recurring-transactions/{id}` | JWT | Delete one owned recurring transaction. |
-| `POST` | `/api/recurring-transactions/{id}/generate` | JWT | Generate the next due transaction and advance the schedule. |
+| `POST` | `/api/recurring-transactions/{id}/generate` | JWT | Generate one occurrence atomically; supply `occurrenceDate=nextRunDate` for retry safety. |
 
 Recurring transaction rules:
 
@@ -298,9 +304,11 @@ Recurring transaction rules:
 - The recurring transaction type must match the category type.
 - Cross-user recurring transaction access returns `404 Not Found`.
 - `type`, `amount`, `categoryId`, `frequency`, and `startDate` are required.
-- `amount` must be at least `0.01`.
+- `amount` must be at least `0.01`, with at most 17 integer digits and 2 fractional digits.
 - `startDate` must be on or before `endDate` when `endDate` is provided.
 - Supported frequencies are `DAILY`, `WEEKLY`, `MONTHLY`, and `YEARLY`.
+
+Category types are immutable after creation. Recurring schedule edits cannot rewind generated history. CSV imports return structured partial results and deduplicate exact-file retries per user; exports escape spreadsheet formulas. See [full contracts](docs/contracts.md).
 
 ## Example Requests and Responses
 

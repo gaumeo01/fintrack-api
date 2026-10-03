@@ -17,6 +17,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ApiErrorResponse> handleBadRequestException(
@@ -75,6 +76,7 @@ public class GlobalExceptionHandler {
                 LocalDateTime.now(),
                 null);
 
+        response.setCode(exception.getCode());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
     }
 
@@ -164,10 +166,24 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiErrorResponse> handleLargeUpload(HttpServletRequest request) {
+        return ResponseEntity.status(413).body(new ApiErrorResponse(413, "Payload Too Large",
+                "CSV upload exceeds the 2 MB limit", request.getRequestURI(), LocalDateTime.now(), null));
+    }
+
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleMissingEndpoint(HttpServletRequest request) {
+        return ResponseEntity.status(404).body(new ApiErrorResponse(404, "Not Found",
+                "Endpoint not found", request.getRequestURI(), LocalDateTime.now(), null));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleException(
             Exception exception,
             HttpServletRequest request) {
+        // Exception type only: messages/SQL bind values may contain personal data.
+        LOG.error("Unhandled {} for {}", exception.getClass().getSimpleName(), request.getMethod());
         ApiErrorResponse response = new ApiErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "Internal Server Error",

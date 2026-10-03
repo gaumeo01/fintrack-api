@@ -35,6 +35,7 @@ public class AuthController {
         return authService.login(request);
     }
 
+    @io.swagger.v3.oas.annotations.Operation(description = "Incorrect current password returns 401 with code INVALID_CURRENT_PASSWORD; the session remains valid. New passwords require at least 8 characters and at most 72 UTF-8 bytes.")
     @PutMapping("/change-password")
     public UserResponse changePassword(@Valid @RequestBody ChangePasswordRequest request) {
         return authService.changePassword(request);

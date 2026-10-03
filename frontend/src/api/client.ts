@@ -1,6 +1,9 @@
+import { parseApiJson } from "../lib/json";
+import { handleUnauthorized } from "../lib/session";
 import axios from "axios";
 
 export const api = axios.create({
+  transformResponse: [(data) => typeof data === "string" && data.trim() ? parseApiJson(data) : data],
   baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8080",
 });
 
@@ -15,10 +18,7 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("user");
-    }
+    handleUnauthorized(error.response?.status, error.response?.data?.code, error.config?.headers?.Authorization);
     return Promise.reject(error);
   },
 );

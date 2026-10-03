@@ -74,6 +74,25 @@ class TransactionImportFlowTests {
     }
 
     @Test
+    void precisionLengthAndDateErrorsAreStructuredAndRetrySafe() throws Exception {
+        Long id = createCategory(userAToken, "Food", "EXPENSE");
+        String csv = "type,amount,categoryId,description,transactionDate\n"
+                + "EXPENSE,1.001," + id + ",Bad scale,2024-02-29\n"
+                + "EXPENSE,100000000000000000," + id + ",Overflow,2024-02-29\n"
+                + "EXPENSE,1," + id + "," + "x".repeat(256) + ",2024-02-29\n"
+                + "EXPENSE,1," + id + ",Bad date,2025-02-29\n"
+                + "EXPENSE,1.25," + id + ",Valid,2024-02-29\n";
+        for (int retry = 0; retry < 2; retry++) {
+            mockMvc.perform(multipart("/api/transactions/import").file(csvFile(csv))
+                    .header(HttpHeaders.AUTHORIZATION, bearer(userAToken)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalRows").value(5))
+                .andExpect(jsonPath("$.successfulRows").value(1)).andExpect(jsonPath("$.failedRows").value(4))
+                .andExpect(jsonPath("$.errors[0].code").value("INVALID_ROW"));
+        }
+        org.assertj.core.api.Assertions.assertThat(transactionRepository.count()).isEqualTo(1);
+    }
+
+    @Test
     void importsValidCsvSuccessfully() throws Exception {
         Long categoryId = createCategory(userAToken, "Food", "EXPENSE");
         String csv = """

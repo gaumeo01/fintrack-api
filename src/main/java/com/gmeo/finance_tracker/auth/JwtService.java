@@ -15,6 +15,12 @@ public class JwtService {
 
     public JwtService(JwtProperties jwtProperties) {
         this.jwtProperties = jwtProperties;
+        if (jwtProperties.getSecret() == null || jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalArgumentException("APP_JWT_SECRET must contain at least 32 UTF-8 bytes");
+        }
+        if (jwtProperties.getAccessTokenExpirationMs() <= 0) {
+            throw new IllegalArgumentException("JWT access token expiration must be positive");
+        }
     }
 
     public String generateAccessToken(String email) {

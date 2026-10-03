@@ -70,6 +70,13 @@ class CategoryServiceTests {
                 .hasMessage("Category not found with id: 9");
     }
 
+    @Test
+    void typeIsImmutableEvenWithoutReferences() {
+        when(categoryRepository.findByIdAndUserId(1L, 7L)).thenReturn(Optional.of(category(1L, "Food")));
+        var change = request("Salary"); change.setType(CategoryType.INCOME);
+        assertThatThrownBy(() -> categoryService.updateCategory(1L, change)).hasMessageContaining("immutable");
+    }
+
     private CategoryRequest request(String name) {
         CategoryRequest request = new CategoryRequest();
         request.setName(name);

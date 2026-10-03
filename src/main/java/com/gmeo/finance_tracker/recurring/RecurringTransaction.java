@@ -63,6 +63,8 @@ public class RecurringTransaction {
     @Column(nullable = false)
     private LocalDate nextRunDate;
 
+    private LocalDate lastGeneratedDate;
+
     @Column(nullable = false)
     private boolean active;
 

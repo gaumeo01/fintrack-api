@@ -89,6 +89,8 @@ public class TransactionController {
                 .body(csv);
     }
 
+    @io.swagger.v3.oas.annotations.Operation(summary = "Import UTF-8 CSV with partial row results",
+            description = "Exact file bytes and logical row number form a per-user retry identity. successfulRows includes previously committed rows. Invalid rows use code INVALID_ROW; structural CSV errors return 400 before writes. Maximum upload: 2 MB.")
     @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public TransactionImportResponse importTransactions(@RequestParam("file") MultipartFile file) {
         return transactionService.importTransactions(file);

@@ -1,40 +1,81 @@
 name: CI
-
 on:
   pull_request:
   push:
-    branches:
-      - main
-
+    branches: [main]
+permissions:
+  contents: read
 jobs:
-  test:
+  verify:
     runs-on: ubuntu-latest
-
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: finance_tracker_it
+          POSTGRES_USER: fintrack_test
+          POSTGRES_PASSWORD: isolated-ci-test-only
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U fintrack_test -d finance_tracker_it"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      FINTRACK_TEST_DB_URL: jdbc:postgresql://localhost:5432/finance_tracker_it
+      FINTRACK_TEST_DB_PASSWORD: isolated-ci-test-only
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Java
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
-
-      - name: Run tests
-        run: sh mvnw test
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Backend tests, PostgreSQL migrations and package
+        run: sh mvnw -B verify
+      - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-
-      - name: Install frontend dependencies
+      - name: Frontend install, tests, typecheck and production build
         working-directory: frontend
-        run: npm ci
-
-      - name: Build frontend
+        run: |
+          npm ci
+          npm test
+          npm run typecheck
+          npm run build
+      - name: Install browser
         working-directory: frontend
-        run: npm run build
+        run: npx playwright install --with-deps chromium
+      - name: Start isolated backend for browser tests
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/finance_tracker_it
+          SPRING_DATASOURCE_USERNAME: fintrack_test
+          SPRING_DATASOURCE_PASSWORD: isolated-ci-test-only
+          APP_JWT_SECRET: isolated-ci-test-signing-key-at-least-32-bytes
+          APP_CORS_ALLOWED_ORIGINS: http://localhost:5174
+          SPRING_PROFILES_ACTIVE: prod
+        run: |
+          java -jar target/finance-tracker-0.0.1-SNAPSHOT.jar --server.port=18080 > target/e2e-backend.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://localhost:18080/actuator/health/readiness; then exit 0; fi
+            sleep 1
+          done
+          cat target/e2e-backend.log
+          exit 1
+      - name: Core browser journeys
+        working-directory: frontend
+        run: npm run test:e2e
+      - name: Verify production images
+        run: |
+          docker build -t fintrack-api:ci .
+          docker build -t fintrack-web:ci frontend
+      - name: Diff whitespace check
+        run: git diff --check
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: verification-failure-details
+          path: |
+            target/surefire-reports
+            target/e2e-backend.log
+            frontend/test-results

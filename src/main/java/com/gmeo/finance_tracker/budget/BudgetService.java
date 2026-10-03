@@ -37,6 +37,7 @@ public class BudgetService {
     }
 
     public BudgetResponse createBudget(BudgetRequest request) {
+        com.gmeo.finance_tracker.common.validation.RequestValidation.validate(request);
         validateDateRange(request);
         User currentUser = currentUserService.getCurrentUser();
         Category category = findOwnedExpenseCategory(request.getCategoryId(), currentUser.getId());
@@ -64,6 +65,7 @@ public class BudgetService {
     }
 
     public BudgetResponse updateBudget(Long id, BudgetRequest request) {
+        com.gmeo.finance_tracker.common.validation.RequestValidation.validate(request);
         validateDateRange(request);
         User currentUser = currentUserService.getCurrentUser();
         Budget budget = findOwnedBudget(id, currentUser.getId());

@@ -1,5 +1,6 @@
+import { clearSession, SESSION_CHANGED } from "../lib/session";
 import type React from "react";
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
 import type { LoginResponse, User } from "../types/api";
 
@@ -16,12 +17,42 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 function readUser(): User | null {
   const raw = localStorage.getItem("user");
-  return raw ? (JSON.parse(raw) as User) : null;
+  try {
+    const parsed = raw ? JSON.parse(raw) : null;
+    return localStorage.getItem("accessToken") && parsed && typeof parsed.email === "string" ? parsed as User : null;
+  } catch {
+    return null;
+  }
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [token, setToken] = useState(() => localStorage.getItem("accessToken"));
+  const [token, setToken] = useState(() => {
+    if (!readUser()) {
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("user");
+      return null;
+    }
+    return localStorage.getItem("accessToken");
+  });
   const [user, setUser] = useState<User | null>(() => readUser());
+
+  useEffect(() => {
+    const sync = () => {
+      const nextUser = readUser();
+      if (!nextUser) {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("user");
+      }
+      setToken(nextUser ? localStorage.getItem("accessToken") : null);
+      setUser(nextUser);
+    };
+    window.addEventListener(SESSION_CHANGED, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(SESSION_CHANGED, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
 
   async function login(email: string, password: string) {
     const { data } = await api.post<LoginResponse>("/api/auth/login", { email, password });
@@ -37,8 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   function logout() {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("user");
+    clearSession();
     setToken(null);
     setUser(null);
   }

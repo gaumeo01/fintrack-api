@@ -1,3 +1,4 @@
+import { currentMonth, monthRange } from "../lib/dates";
 import { useEffect, useState } from "react";
 import { api, errorMessage } from "../api/client";
 import StatCard from "../components/StatCard";
@@ -8,18 +9,8 @@ import type {
   TrendItem,
 } from "../types/api";
 
-function currentMonth() {
-  return new Date().toISOString().slice(0, 7);
-}
 
-function monthStart(month: string) {
-  return `${month}-01`;
-}
 
-function monthEnd(month: string) {
-  const [year, monthNumber] = month.split("-").map(Number);
-  return new Date(year, monthNumber, 0).toISOString().slice(0, 10);
-}
 
 export default function Dashboard() {
   const [month, setMonth] = useState(currentMonth());
@@ -33,8 +24,8 @@ export default function Dashboard() {
     async function load() {
       setError("");
       try {
-        const fromDate = monthStart(month);
-        const toDate = monthEnd(month);
+        const fromDate = monthRange(month).startDate;
+        const toDate = monthRange(month).endDate;
         const [summaryRes, trendRes, breakdownRes, reportRes] = await Promise.all([
           api.get<DashboardSummary>("/api/dashboard/summary", { params: { fromDate, toDate } }),
           api.get<{ items: TrendItem[] }>("/api/dashboard/trend", {
@@ -65,7 +56,7 @@ export default function Dashboard() {
         </div>
         <label className="w-full text-sm font-medium md:w-48">
           Month
-          <input className="mt-1" type="month" value={month} onChange={(event) => setMonth(event.target.value)} />
+          <input className="mt-1" type="month" value={month} onChange={(event) => event.target.value && setMonth(event.target.value)} />
         </label>
       </div>
       {error && <p className="rounded-md bg-coral/10 p-3 text-sm text-coral">{error}</p>}

@@ -60,3 +60,7 @@ Budgets use the date-range API: `GET /api/budgets`, `POST /api/budgets`, `GET /a
 19. Update `budgetId` with the created budget id.
 20. Run budget list, detail, update, usage, and delete requests.
 21. Run **Account / Change password** only after setting placeholder password variables intentionally.
+
+## Current compatibility contracts
+
+See [API contracts](../../docs/contracts.md) and [migration/deployment guide](../../docs/operations.md). Set `occurrenceDate` to the schedule's displayed `nextRunDate` before generating; reuse that date for a retry. Category type changes now return 400. Money is limited to 17 integer / 2 fractional digits. Password changes distinguish 401 `INVALID_CURRENT_PASSWORD` from an invalid session; retain the token for that code. Exact-file CSV retries deduplicate per user and return `INVALID_ROW` codes for rejected rows.

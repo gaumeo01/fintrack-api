@@ -16,7 +16,8 @@ public class RegisterRequest {
     private String email;
 
     @NotBlank
-    @Size(min = 8, max = 100)
+    @Size(min = 8)
+    @com.gmeo.finance_tracker.common.validation.PasswordBytes
     private String password;
 
     @NotBlank

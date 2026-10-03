@@ -1,11 +1,9 @@
+import { currentMonth } from "../lib/dates";
 import { useEffect, useState } from "react";
 import { api, errorMessage } from "../api/client";
 import StatCard from "../components/StatCard";
 import type { MonthlyReport as MonthlyReportData } from "../types/api";
 
-function currentMonth() {
-  return new Date().toISOString().slice(0, 7);
-}
 
 export default function MonthlyReport() {
   const [month, setMonth] = useState(currentMonth());
@@ -34,7 +32,7 @@ export default function MonthlyReport() {
         </div>
         <label className="w-full text-sm font-medium md:w-48">
           Month
-          <input className="mt-1" type="month" value={month} onChange={(event) => setMonth(event.target.value)} />
+          <input className="mt-1" type="month" value={month} onChange={(event) => event.target.value && setMonth(event.target.value)} />
         </label>
       </div>
       {error && <p className="rounded-md bg-coral/10 p-3 text-sm text-coral">{error}</p>}

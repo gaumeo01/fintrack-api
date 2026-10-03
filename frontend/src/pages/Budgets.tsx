@@ -1,17 +1,12 @@
+import { currentMonth, monthRange } from "../lib/dates";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { api, errorMessage } from "../api/client";
 import StatusBadge from "../components/StatusBadge";
 import type { Budget, BudgetUsageItem, Category } from "../types/api";
 
-function monthRange(month: string) {
-  const [year, monthNumber] = month.split("-").map(Number);
-  const startDate = `${month}-01`;
-  const endDate = new Date(year, monthNumber, 0).toISOString().slice(0, 10);
-  return { startDate, endDate };
-}
 
 export default function Budgets() {
-  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [month, setMonth] = useState(currentMonth());
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [usage, setUsage] = useState<BudgetUsageItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -93,7 +88,7 @@ export default function Budgets() {
         </div>
         <label className="w-full text-sm font-medium md:w-48">
           Quick month
-          <input className="mt-1" type="month" value={month} onChange={(event) => setMonth(event.target.value)} />
+          <input className="mt-1" type="month" value={month} onChange={(event) => event.target.value && setMonth(event.target.value)} />
         </label>
       </div>
       {error && <p className="rounded-md bg-coral/10 p-3 text-sm text-coral">{error}</p>}

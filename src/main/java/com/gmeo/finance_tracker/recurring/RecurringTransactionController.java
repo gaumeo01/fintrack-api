@@ -56,8 +56,11 @@ public class RecurringTransactionController {
         return ResponseEntity.noContent().build();
     }
 
+    @io.swagger.v3.oas.annotations.Operation(summary = "Generate one due occurrence atomically",
+            description = "Pass occurrenceDate=nextRunDate for safe retry: repeat calls return the same transaction. Omitting it preserves legacy behavior of consuming the next due occurrence. Inactive, future and ended schedules reject new generation.")
     @PostMapping("/{id}/generate")
-    public RecurringTransactionGenerateResponse generateTransaction(@PathVariable Long id) {
-        return recurringTransactionService.generateTransaction(id);
+    public RecurringTransactionGenerateResponse generateTransaction(@PathVariable Long id,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) java.time.LocalDate occurrenceDate) {
+        return recurringTransactionService.generateTransaction(id, occurrenceDate);
     }
 }

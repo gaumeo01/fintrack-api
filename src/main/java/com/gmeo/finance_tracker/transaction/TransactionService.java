@@ -52,6 +52,7 @@ public class TransactionService {
     }
 
     public TransactionResponse createTransaction(TransactionRequest request) {
+        com.gmeo.finance_tracker.common.validation.RequestValidation.validate(request);
         User currentUser = currentUserService.getCurrentUser();
         Category category = findOwnedCategory(request.getCategoryId(), currentUser.getId());
         validateCategoryType(category, request.getType());
@@ -161,6 +162,12 @@ public class TransactionService {
             throw new BadRequestException("CSV file must not be empty");
         }
 
+        String digest;
+        try {
+            digest = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(file.getBytes()));
+        } catch (IOException | java.security.NoSuchAlgorithmException exception) {
+            throw new BadRequestException("Could not read CSV file");
+        }
         List<List<String>> rows = parseCsv(file);
         if (rows.isEmpty() || isBlankRow(rows.get(0))) {
             throw new BadRequestException("CSV file must not be empty");
@@ -178,9 +185,19 @@ public class TransactionService {
                 continue;
             }
 
+            String importKey = digest + ":" + (index + 1);
             try {
-                Transaction transaction = mapImportRow(row, currentUser);
-                transactionRepository.save(transaction);
+                if (!transactionRepository.existsByUserIdAndImportKey(currentUser.getId(), importKey)) {
+                    Transaction transaction = mapImportRow(row, currentUser);
+                    transaction.setImportKey(importKey);
+                    try {
+                        // Each repository save has its own transaction: a bad row never poisons later rows.
+                        transactionRepository.saveAndFlush(transaction);
+                    } catch (org.springframework.dao.DataIntegrityViolationException conflict) {
+                        // A concurrent retry may have committed the same row. Other failures propagate.
+                        if (!transactionRepository.existsByUserIdAndImportKey(currentUser.getId(), importKey)) throw conflict;
+                    }
+                }
                 successfulRows++;
             } catch (IllegalArgumentException | DateTimeParseException | ResourceNotFoundException | BadRequestException exception) {
                 errors.add(new TransactionImportError(index + 1, exception.getMessage()));
@@ -198,6 +215,7 @@ public class TransactionService {
     }
 
     public TransactionResponse updateTransaction(Long id, TransactionRequest request) {
+        com.gmeo.finance_tracker.common.validation.RequestValidation.validate(request);
         User currentUser = currentUserService.getCurrentUser();
         Transaction transaction = findOwnedTransaction(id, currentUser.getId());
         Category category = findOwnedCategory(request.getCategoryId(), currentUser.getId());
@@ -255,6 +273,8 @@ public class TransactionService {
     private TransactionResponse mapToResponse(Transaction transaction) {
         TransactionResponse response = new TransactionResponse();
         response.setId(transaction.getId());
+        response.setRecurringId(transaction.getRecurringId());
+        response.setOccurrenceDate(transaction.getOccurrenceDate());
         response.setType(transaction.getType());
         response.setAmount(transaction.getAmount());
         response.setCategoryId(transaction.getCategory().getId());
@@ -273,6 +293,12 @@ public class TransactionService {
         }
 
         String text = value.toString();
+        // Quote spreadsheet formulas even when preceded by whitespace/control characters.
+        String stripped = text.stripLeading();
+        if (value instanceof String && (!stripped.isEmpty() && "=+-@".indexOf(stripped.charAt(0)) >= 0
+                || text.startsWith("\t") || text.startsWith("\r") || text.startsWith("\n"))) {
+            text = "'" + text;
+        }
         if (text.contains(",") || text.contains("\"") || text.contains("\n") || text.contains("\r")) {
             return "\"" + text.replace("\"", "\"\"") + "\"";
         }
@@ -283,11 +309,14 @@ public class TransactionService {
     private List<List<String>> parseCsv(MultipartFile file) {
         String content;
         try {
-            content = new String(file.getBytes(), StandardCharsets.UTF_8);
+            content = StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+                    .decode(java.nio.ByteBuffer.wrap(file.getBytes())).toString();
         } catch (IOException exception) {
             throw new BadRequestException("Could not read CSV file");
         }
 
+        if (content.startsWith("\uFEFF")) content = content.substring(1);
         if (content.isBlank()) {
             return List.of();
         }
@@ -296,6 +325,7 @@ public class TransactionService {
         List<String> row = new ArrayList<>();
         StringBuilder value = new StringBuilder();
         boolean inQuotes = false;
+        boolean closedQuote = false;
 
         for (int index = 0; index < content.length(); index++) {
             char character = content.charAt(index);
@@ -306,6 +336,7 @@ public class TransactionService {
                         index++;
                     } else {
                         inQuotes = false;
+                        closedQuote = true;
                     }
                 } else {
                     value.append(character);
@@ -313,16 +344,22 @@ public class TransactionService {
                 continue;
             }
 
+            if (closedQuote && character != ',' && character != '\r' && character != '\n') {
+                throw new BadRequestException("CSV contains text after closing quote");
+            }
             if (character == '"') {
+                if (!value.isEmpty()) throw new BadRequestException("CSV quote must start a field");
                 inQuotes = true;
             } else if (character == ',') {
                 row.add(value.toString());
                 value.setLength(0);
+                closedQuote = false;
             } else if (character == '\n') {
                 row.add(value.toString());
                 rows.add(row);
                 row = new ArrayList<>();
                 value.setLength(0);
+                closedQuote = false;
             } else if (character != '\r') {
                 value.append(character);
             }
@@ -358,23 +395,22 @@ public class TransactionService {
             throw new BadRequestException("Row must contain " + IMPORT_HEADERS.size() + " columns");
         }
 
-        TransactionType type = TransactionType.valueOf(row.get(0).trim());
-        BigDecimal amount = new BigDecimal(row.get(1).trim());
-        if (amount.compareTo(new BigDecimal("0.01")) < 0) {
-            throw new BadRequestException("Amount must be greater than or equal to 0.01");
-        }
-
-        Long categoryId = Long.valueOf(row.get(2).trim());
-        Category category = findOwnedCategory(categoryId, currentUser.getId());
-        validateCategoryType(category, type);
-
+        TransactionRequest request = new TransactionRequest();
+        request.setType(TransactionType.valueOf(row.get(0).trim()));
+        request.setAmount(new BigDecimal(row.get(1).trim()));
+        request.setCategoryId(Long.valueOf(row.get(2).trim()));
+        request.setDescription(row.get(3));
+        request.setTransactionDate(LocalDate.parse(row.get(4).trim()));
+        com.gmeo.finance_tracker.common.validation.RequestValidation.validate(request);
+        Category category = findOwnedCategory(request.getCategoryId(), currentUser.getId());
+        validateCategoryType(category, request.getType());
         Transaction transaction = new Transaction();
-        transaction.setType(type);
-        transaction.setAmount(amount);
+        transaction.setType(request.getType());
+        transaction.setAmount(request.getAmount());
         transaction.setCategory(category);
         transaction.setUser(currentUser);
-        transaction.setDescription(row.get(3));
-        transaction.setTransactionDate(LocalDate.parse(row.get(4).trim()));
+        transaction.setDescription(request.getDescription());
+        transaction.setTransactionDate(request.getTransactionDate());
         return transaction;
     }
 }

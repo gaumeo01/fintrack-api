@@ -1,19 +1,20 @@
+import { today } from "../lib/dates";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { api, errorMessage } from "../api/client";
 import type { Category, RecurringFrequency, RecurringTransaction, TransactionType } from "../types/api";
 
 const frequencies: RecurringFrequency[] = ["DAILY", "WEEKLY", "MONTHLY", "YEARLY"];
 
-const initialForm = {
+const initialForm = () => ({
   type: "EXPENSE" as TransactionType,
   amount: "",
   categoryId: "",
   description: "",
   frequency: "MONTHLY" as RecurringFrequency,
-  startDate: new Date().toISOString().slice(0, 10),
+  startDate: today(),
   endDate: "",
   active: true,
-};
+});
 
 export default function RecurringTransactions() {
   const [items, setItems] = useState<RecurringTransaction[]>([]);
@@ -62,7 +63,7 @@ export default function RecurringTransactions() {
       } else {
         await api.post("/api/recurring-transactions", payload);
       }
-      setForm(initialForm);
+      setForm(initialForm());
       setEditingId(null);
       await load();
     } catch (err) {
@@ -78,14 +79,14 @@ export default function RecurringTransactions() {
     await load();
   }
 
-  async function generate(id: number) {
+  async function generate(id: number, occurrenceDate: string) {
     if (!confirm("Generate the next due transaction?")) {
       return;
     }
     setError("");
     setMessage("");
     try {
-      const response = await api.post<{ nextRunDate: string }>(`/api/recurring-transactions/${id}/generate`);
+      const response = await api.post<{ nextRunDate: string }>(`/api/recurring-transactions/${id}/generate`, null, { params: { occurrenceDate } });
       setMessage(`Generated transaction. Next run date: ${response.data.nextRunDate}`);
       await load();
     } catch (err) {
@@ -154,7 +155,7 @@ export default function RecurringTransactions() {
                 <td>{item.frequency}</td>
                 <td>{item.nextRunDate}</td>
                 <td className="space-x-2">
-                  <button className="btn-secondary" type="button" onClick={() => generate(item.id)}>
+                  <button className="btn-secondary" type="button" onClick={() => generate(item.id, item.nextRunDate)}>
                     Generate
                   </button>
                   <button

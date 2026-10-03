@@ -162,6 +162,25 @@ class JwtSecurityIntegrationTests {
     }
 
     @Test
+    void wrongCurrentPasswordHasStableCodeAndKeepsTokenValid() throws Exception {
+        String token = jwtService.generateAccessToken("test@example.com");
+        mockMvc.perform(put("/api/auth/change-password").header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+            .contentType(MediaType.APPLICATION_JSON).content("{\"currentPassword\":\"wrong\",\"newPassword\":\"newpass123\"}"))
+            .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value("INVALID_CURRENT_PASSWORD"));
+        mockMvc.perform(get("/api/categories").header(HttpHeaders.AUTHORIZATION, "Bearer " + token)).andExpect(status().isOk());
+    }
+
+    @Test
+    void expiredSignedTokenIsRejected() throws Exception {
+        String token = io.jsonwebtoken.Jwts.builder().subject("test@example.com")
+            .expiration(new java.util.Date(System.currentTimeMillis() - 60000))
+            .signWith(io.jsonwebtoken.security.Keys.hmacShaKeyFor(
+                "test-secret-for-jwt-token-generation-at-least-32-characters".getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+            .compact();
+        mockMvc.perform(get("/api/categories").header(HttpHeaders.AUTHORIZATION, "Bearer " + token)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void changePasswordWithoutTokenReturnsUnauthorized() throws Exception {
         mockMvc.perform(put("/api/auth/change-password")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -218,6 +237,12 @@ class JwtSecurityIntegrationTests {
         mockMvc.perform(get("/api/reports/monthly")
                         .param("month", "2026-06"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void unavailablePublicEndpointReturns404WithoutInternalError() throws Exception {
+        mockMvc.perform(get("/nonexistent-public-endpoint")).andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Endpoint not found"));
     }
 
     @Test

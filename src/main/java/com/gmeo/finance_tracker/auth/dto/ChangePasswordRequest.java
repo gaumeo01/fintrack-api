@@ -13,6 +13,7 @@ public class ChangePasswordRequest {
     private String currentPassword;
 
     @NotBlank
-    @Size(min = 8, max = 100)
+    @Size(min = 8)
+    @com.gmeo.finance_tracker.common.validation.PasswordBytes
     private String newPassword;
 }

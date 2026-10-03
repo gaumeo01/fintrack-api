@@ -20,8 +20,10 @@ public class AccountRequest {
     private AccountType type;
 
     @NotNull
+    @jakarta.validation.constraints.Digits(integer = 17, fraction = 2)
     private BigDecimal initialBalance;
 
+    @jakarta.validation.constraints.Digits(integer = 17, fraction = 2)
     private BigDecimal currentBalance;
 
     private Boolean active;
