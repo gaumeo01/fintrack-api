@@ -1,0 +1,21 @@
+The following files have been resolved:
+   org.springframework.boot:spring-boot-starter-flyway:jar:4.0.6:compile -- module spring.boot.starter.flyway [auto]
+   org.flywaydb:flyway-database-postgresql:jar:11.14.1:compile -- module flyway.database.postgresql (auto)
+   org.springframework.boot:spring-boot-starter-actuator:jar:4.0.6:compile -- module spring.boot.starter.actuator [auto]
+   org.springframework.boot:spring-boot-starter-data-jpa:jar:4.0.6:compile -- module spring.boot.starter.data.jpa [auto]
+   org.springframework.boot:spring-boot-starter-validation:jar:4.0.6:compile -- module spring.boot.starter.validation [auto]
+   org.springframework.boot:spring-boot-starter-webmvc:jar:4.0.6:compile -- module spring.boot.starter.webmvc [auto]
+   org.springframework.boot:spring-boot-devtools:jar:4.0.6:runtime (optional) -- module spring.boot.devtools [auto]
+   org.postgresql:postgresql:jar:42.7.12:runtime -- module org.postgresql.jdbc [auto]
+   org.projectlombok:lombok:jar:1.18.46:compile (optional) -- module lombok
+   org.springframework.boot:spring-boot-starter-security:jar:4.0.6:compile -- module spring.boot.starter.security [auto]
+   org.springdoc:springdoc-openapi-starter-webmvc-ui:jar:3.0.3:compile -- module org.springdoc.openapi.ui [auto]
+   io.jsonwebtoken:jjwt-api:jar:0.12.6:compile -- module jjwt.api (auto)
+   io.jsonwebtoken:jjwt-impl:jar:0.12.6:runtime -- module jjwt.impl (auto)
+   io.jsonwebtoken:jjwt-jackson:jar:0.12.6:runtime -- module jjwt.jackson (auto)
+   org.springframework.boot:spring-boot-starter-data-jpa-test:jar:4.0.6:test -- module spring.boot.starter.data.jpa.test [auto]
+   org.springframework.boot:spring-boot-starter-validation-test:jar:4.0.6:test -- module spring.boot.starter.validation.test [auto]
+   org.springframework.boot:spring-boot-starter-webmvc-test:jar:4.0.6:test -- module spring.boot.starter.webmvc.test [auto]
+   org.springframework.security:spring-security-test:jar:7.0.5:test -- module spring.security.test [auto]
+   com.h2database:h2:jar:2.4.240:test -- module com.h2database [auto]
+
