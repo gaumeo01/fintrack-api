@@ -1,3 +1,4 @@
+import { formatVnd } from "../lib/currency";
 import { currentMonth, monthRange } from "../lib/dates";
 import { useEffect, useState } from "react";
 import { api, errorMessage } from "../api/client";
@@ -61,21 +62,22 @@ export default function Dashboard() {
       </div>
       {error && <p className="rounded-md bg-coral/10 p-3 text-sm text-coral">{error}</p>}
       <div className="grid gap-4 md:grid-cols-4">
-        <StatCard label="Income" value={summary?.totalIncome ?? "0"} tone="income" />
-        <StatCard label="Expense" value={summary?.totalExpense ?? "0"} tone="expense" />
-        <StatCard label="Balance" value={summary?.balance ?? "0"} />
+        <StatCard label="Income" value={formatVnd(summary?.totalIncome ?? "0")} tone="income" />
+        <StatCard label="Expense" value={formatVnd(summary?.totalExpense ?? "0")} tone="expense" />
+        <StatCard label="Balance" value={formatVnd(summary?.balance ?? "0")} />
         <StatCard label="Transactions" value={summary?.transactionCount ?? 0} />
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="panel">
+        <div className="panel min-w-0">
           <h3 className="font-semibold">Daily trend</h3>
-          <div className="mt-3 space-y-2">
-            {trend.slice(0, 10).map((item) => (
-              <div key={item.period} className="grid grid-cols-4 gap-2 text-sm">
+          <div className="mt-3 max-h-80 overflow-auto space-y-2">
+            <div className="grid min-w-[480px] grid-cols-4 gap-2 text-xs font-semibold text-stone-500"><span>Date</span><span>Income (VND)</span><span>Expense (VND)</span><span>Balance (VND)</span></div>
+            {trend.map((item) => (
+              <div key={item.period} className="grid min-w-[480px] grid-cols-4 gap-2 text-sm">
                 <span>{item.period}</span>
-                <span className="text-mint">{item.incomeAmount}</span>
-                <span className="text-coral">{item.expenseAmount}</span>
-                <span>{item.balance}</span>
+                <span className="text-mint">{formatVnd(item.incomeAmount)}</span>
+                <span className="text-coral">{formatVnd(item.expenseAmount)}</span>
+                <span>{formatVnd(item.balance)}</span>
               </div>
             ))}
             {!trend.length && <p className="text-sm text-stone-500">No trend data.</p>}
@@ -87,7 +89,7 @@ export default function Dashboard() {
             {breakdown.map((item) => (
               <div key={item.categoryId} className="flex justify-between gap-3 text-sm">
                 <span>{item.categoryName}</span>
-                <span className="font-semibold">{item.totalAmount}</span>
+                <span className="font-semibold">{formatVnd(item.totalAmount)}</span>
               </div>
             ))}
             {!breakdown.length && <p className="text-sm text-stone-500">No category data.</p>}
@@ -97,9 +99,9 @@ export default function Dashboard() {
       <div className="panel">
         <h3 className="font-semibold">Monthly report</h3>
         <div className="mt-3 grid gap-4 md:grid-cols-3">
-          <StatCard label="Report income" value={report?.totalIncome ?? "0"} tone="income" />
-          <StatCard label="Report expense" value={report?.totalExpense ?? "0"} tone="expense" />
-          <StatCard label="Report balance" value={report?.balance ?? "0"} />
+          <StatCard label="Report income" value={formatVnd(report?.totalIncome ?? "0")} tone="income" />
+          <StatCard label="Report expense" value={formatVnd(report?.totalExpense ?? "0")} tone="expense" />
+          <StatCard label="Report balance" value={formatVnd(report?.balance ?? "0")} />
         </div>
       </div>
     </section>

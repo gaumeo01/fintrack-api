@@ -63,7 +63,7 @@ The production deployment is `docker compose -f compose.prod.yml up -d --build` 
 
 ## Requirements
 
-- Java 21
+- Java 25
 - Docker and Docker Compose
 - Maven wrapper from this repository (`mvnw`)
 

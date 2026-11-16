@@ -1,3 +1,4 @@
+import { formatVnd } from "../lib/currency";
 import { today } from "../lib/dates";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { api, errorMessage } from "../api/client";
@@ -151,7 +152,7 @@ export default function RecurringTransactions() {
               <tr key={item.id}>
                 <td>{item.type}</td>
                 <td>{item.categoryName}</td>
-                <td>{item.amount}</td>
+                <td>{formatVnd(item.amount)}</td>
                 <td>{item.frequency}</td>
                 <td>{item.nextRunDate}</td>
                 <td className="space-x-2">

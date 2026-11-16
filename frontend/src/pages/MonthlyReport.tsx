@@ -1,3 +1,4 @@
+import { formatVnd } from "../lib/currency";
 import { currentMonth } from "../lib/dates";
 import { useEffect, useState } from "react";
 import { api, errorMessage } from "../api/client";
@@ -37,9 +38,9 @@ export default function MonthlyReport() {
       </div>
       {error && <p className="rounded-md bg-coral/10 p-3 text-sm text-coral">{error}</p>}
       <div className="grid gap-4 md:grid-cols-4">
-        <StatCard label="Income" value={report?.totalIncome ?? "0"} tone="income" />
-        <StatCard label="Expense" value={report?.totalExpense ?? "0"} tone="expense" />
-        <StatCard label="Balance" value={report?.balance ?? "0"} />
+        <StatCard label="Income" value={formatVnd(report?.totalIncome ?? "0")} tone="income" />
+        <StatCard label="Expense" value={formatVnd(report?.totalExpense ?? "0")} tone="expense" />
+        <StatCard label="Balance" value={formatVnd(report?.balance ?? "0")} />
         <StatCard label="Transactions" value={report?.transactionCount ?? 0} />
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
@@ -49,7 +50,7 @@ export default function MonthlyReport() {
             {report?.topExpenseCategories.map((item) => (
               <div key={item.categoryId} className="flex justify-between gap-3 text-sm">
                 <span>{item.categoryName}</span>
-                <span className="font-semibold">{item.amount}</span>
+                <span className="font-semibold">{formatVnd(item.amount)}</span>
               </div>
             ))}
             {!report?.topExpenseCategories.length && <p className="text-sm text-stone-500">No expenses.</p>}
@@ -61,7 +62,7 @@ export default function MonthlyReport() {
             {report?.topIncomeCategories.map((item) => (
               <div key={item.categoryId} className="flex justify-between gap-3 text-sm">
                 <span>{item.categoryName}</span>
-                <span className="font-semibold">{item.amount}</span>
+                <span className="font-semibold">{formatVnd(item.amount)}</span>
               </div>
             ))}
             {!report?.topIncomeCategories.length && <p className="text-sm text-stone-500">No income.</p>}
@@ -83,9 +84,9 @@ export default function MonthlyReport() {
             {report?.dailyTrend.map((item) => (
               <tr key={item.date}>
                 <td>{item.date}</td>
-                <td className="text-mint">{item.income}</td>
-                <td className="text-coral">{item.expense}</td>
-                <td>{item.balance}</td>
+                <td className="text-mint">{formatVnd(item.income)}</td>
+                <td className="text-coral">{formatVnd(item.expense)}</td>
+                <td>{formatVnd(item.balance)}</td>
                 <td>{item.transactionCount}</td>
               </tr>
             ))}

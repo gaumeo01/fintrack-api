@@ -26,7 +26,7 @@ test("login, exact dates, transaction edit/filter, budget, recurring, password a
   await page.locator('input[type="date"]').nth(1).fill("2024-02-29");
   await page.locator('input[type="date"]').nth(2).fill("2024-02-29");
   await page.getByRole("button", {name:"Filter",exact:true}).click();
-  await expect(page.getByRole("cell", {name:"15.25",exact:true})).toBeVisible();
+  await expect(page.getByRole("cell", {name:"15 ₫",exact:true})).toBeVisible();
   await page.goto("/budgets");
   await page.getByLabel("Quick month").fill("2024-02");
   await expect(page.locator('form input[type="date"]').nth(1)).toHaveValue("2024-02-29");

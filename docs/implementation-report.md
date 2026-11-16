@@ -7,7 +7,7 @@
 - Backend baseline: 169 tests passed, zero failures/errors/skips.
 - Frontend baseline: TypeScript + Vite production build passed. No frontend tests or lint command existed.
 - Maven initially lacked permission to write its user cache; the approved Maven invocation resolved it. PowerShell blocked npm.ps1, so npm.cmd was used. Docker access was approved and worked. No environment blocker remains.
-- Architecture: Spring Boot 4.0.6/Java 21/JPA/PostgreSQL, React/Vite/TypeScript, H2 tests, manual recurring generation, custom CSV parser, Hibernate schema updates with no migrations.
+- Architecture: Spring Boot 4.0.6/Java 25/JPA/PostgreSQL, React/Vite/TypeScript, H2 tests, manual recurring generation, custom CSV parser, Hibernate schema updates with no migrations.
 
 ## 2. Problems Confirmed
 
