@@ -1,3 +1,4 @@
+import { formatVnd } from "../lib/currency";
 import { currentMonth, monthRange } from "../lib/dates";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { api, errorMessage } from "../api/client";
@@ -128,7 +129,7 @@ export default function Budgets() {
               {budgets.map((budget) => (
                 <tr key={budget.id}>
                   <td>{budget.categoryName}</td>
-                  <td>{budget.amount}</td>
+                  <td>{formatVnd(budget.amount)}</td>
                   <td>
                     {budget.startDate} to {budget.endDate}
                   </td>
@@ -170,7 +171,7 @@ export default function Budgets() {
                 <tr key={item.budgetId}>
                   <td>{item.categoryName}</td>
                   <td>
-                    {item.spentAmount} / {item.limitAmount}
+                    {formatVnd(item.spentAmount)} / {formatVnd(item.limitAmount)}
                   </td>
                   <td>{item.usagePercentage}%</td>
                   <td>

@@ -17,6 +17,22 @@ Set `VITE_API_BASE_URL` to the backend origin, for example:
 VITE_API_BASE_URL=http://localhost:8080
 ```
 
+If port 5173 is unavailable on Windows, use:
+
+```powershell
+npm.cmd run dev -- --host 127.0.0.1 --port 3001 --strictPort
+```
+
+Open `http://127.0.0.1:3001/login`. The root `.env` must include this exact
+origin in `APP_CORS_ALLOWED_ORIGINS` (the current `.env.example` includes it).
+An existing `.env` value overrides the fallback in `docker-compose.yml`.
+After changing it, run the following from the repository root to apply it
+without restarting PostgreSQL or removing its data:
+
+```powershell
+docker compose up -d --no-deps --force-recreate app
+```
+
 Build for production:
 
 ```bash

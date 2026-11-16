@@ -1,3 +1,4 @@
+import { formatVnd } from "../lib/currency";
 import { today } from "../lib/dates";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { api, errorMessage } from "../api/client";
@@ -221,7 +222,7 @@ export default function Transactions() {
                 <td>{transaction.transactionDate}</td>
                 <td>{transaction.type}</td>
                 <td>{transaction.categoryName}</td>
-                <td>{transaction.amount}</td>
+                <td>{formatVnd(transaction.amount)}</td>
                 <td>{transaction.description}</td>
                 <td className="space-x-2">
                   <button className="btn-secondary" type="button" onClick={() => edit(transaction)}>

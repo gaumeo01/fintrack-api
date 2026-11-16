@@ -33,6 +33,7 @@ build/
 .vscode/
 
 ### Local environment ###
+.local/
 .env
 .env.*
 !.env.example
